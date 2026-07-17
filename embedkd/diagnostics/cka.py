@@ -24,7 +24,10 @@ RISK_THRESHOLDS = {"high": 0.35, "moderate": 0.60}
 def linear_cka(x: torch.Tensor, y: torch.Tensor) -> float:
     """Linear Centered Kernel Alignment (Kornblith et al., ICML 2019).
 
-    x: [N, D1], y: [N, D2]; features are centered per dimension.
+    x: [N, D1], y: [N, D2]; features are centered per dimension. This is the
+    feature-space form, O(N*D^2); it is numerically identical to the
+    Gram-matrix form used in the authors' prior analysis code (a unit test
+    verifies the equivalence).
     """
     if x.shape[0] != y.shape[0]:
         raise ValueError(f"Need matching sample counts, got {x.shape[0]} vs {y.shape[0]}")
@@ -35,6 +38,35 @@ def linear_cka(x: torch.Tensor, y: torch.Tensor) -> float:
     self_y = (y.t() @ y).norm()
     denom = self_x * self_y
     return float(cross / denom) if denom > 0 else 0.0
+
+
+def _center_gram(gram: torch.Tensor) -> torch.Tensor:
+    row_mean = gram.mean(dim=0, keepdim=True)
+    col_mean = gram.mean(dim=1, keepdim=True)
+    return gram - row_mean - col_mean + gram.mean()
+
+
+def rbf_cka(x: torch.Tensor, y: torch.Tensor, sigma: float | None = None) -> float:
+    """RBF-kernel CKA, inherited from the authors' compatibility analysis.
+
+    Bandwidth defaults to the median squared distance (their heuristic).
+    Reported alongside linear CKA because the two capture complementary,
+    partially orthogonal similarity structure.
+    """
+    if x.shape[0] != y.shape[0]:
+        raise ValueError(f"Need matching sample counts, got {x.shape[0]} vs {y.shape[0]}")
+
+    def kernel(a: torch.Tensor) -> torch.Tensor:
+        sq = torch.cdist(a.float(), a.float()).pow(2)
+        bandwidth = float(sigma) if sigma is not None else float(sq.median())
+        if bandwidth <= 0:
+            bandwidth = 1e-8
+        return torch.exp(-sq / (2.0 * bandwidth))
+
+    k_x = _center_gram(kernel(x))
+    k_y = _center_gram(kernel(y))
+    denom = k_x.norm() * k_y.norm()
+    return float((k_x * k_y).sum() / denom) if denom > 0 else 0.0
 
 
 def _num_params(model: torch.nn.Module) -> int:
@@ -66,6 +98,7 @@ def compatibility_report(
     risk = _risk_level(cka)
     return {
         "cka_pre": round(cka, 4),
+        "cka_rbf_pre": round(rbf_cka(t_emb, s_emb), 4),
         "teacher_params": t_params,
         "student_params": s_params,
         "capacity_ratio": round(t_params / max(1, s_params), 2),

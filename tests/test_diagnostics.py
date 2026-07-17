@@ -30,6 +30,33 @@ def test_cka_shape_mismatch_raises():
         linear_cka(torch.randn(10, 4), torch.randn(9, 4))
 
 
+def test_linear_cka_matches_gram_matrix_form():
+    # The prior analysis code computes CKA on double-centered Gram matrices;
+    # our feature-space form must agree to numerical precision.
+    torch.manual_seed(0)
+    x = torch.randn(40, 12)
+    y = torch.randn(40, 7)
+
+    def gram_form(a, b):
+        def center(k):
+            return k - k.mean(0, keepdim=True) - k.mean(1, keepdim=True) + k.mean()
+
+        k_a, k_b = center(a @ a.t()), center(b @ b.t())
+        return float((k_a * k_b).sum() / (k_a.norm() * k_b.norm()))
+
+    assert linear_cka(x, y) == pytest.approx(gram_form(x, y), abs=1e-5)
+
+
+def test_rbf_cka_self_similarity_and_range():
+    from embedkd.diagnostics import rbf_cka
+
+    torch.manual_seed(0)
+    x = torch.randn(30, 8)
+    assert rbf_cka(x, x) == pytest.approx(1.0, abs=1e-5)
+    other = rbf_cka(x, torch.randn(30, 8))
+    assert 0.0 <= other < 0.6
+
+
 def test_compatibility_report_keys_and_risk():
     teacher = tiny_embedding_model(embed_dim=8)
     student = tiny_embedding_model(embed_dim=8)
