@@ -21,7 +21,9 @@ head:
   normalize: true
   losses:
     sce: 1.0
+    arcface: 0.2
     triplet: 1.0
+    contrastive: 1.0
   sce: {label_smoothing: 0.1}
   triplet: {margin: 0.3, mining: batch_hard}
 
