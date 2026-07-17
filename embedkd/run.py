@@ -27,15 +27,17 @@ def _load_teacher_weights(model: EmbeddingModel, spec: str) -> None:
     state = torch.load(spec, map_location="cpu", weights_only=True)
     state_dict = state.get("state_dict", state)
     missing, unexpected = model.load_state_dict(state_dict, strict=False)
-    missing = [k for k in missing if not k.startswith("classifier")]
     if missing:
         raise RuntimeError(
             f"Teacher checkpoint '{spec}' does not match the configured architecture. "
             f"Missing keys (first 5): {missing[:5]}"
         )
-    if unexpected:
+    # A checkpoint may carry a classifier the current objective does not need
+    # (e.g. teacher trained with sce, distilled with cosine): ignore it.
+    leftover = [k for k in unexpected if not k.startswith("classifier.")]
+    if leftover:
         raise RuntimeError(
-            f"Teacher checkpoint '{spec}' has unexpected keys (first 5): {unexpected[:5]}"
+            f"Teacher checkpoint '{spec}' has unexpected keys (first 5): {leftover[:5]}"
         )
 
 
@@ -70,9 +72,20 @@ class DistillationRun:
                 gem_p_trainable=head_cfg["gem_p_trainable"], normalize=head_cfg["normalize"],
             )
 
+        # Classifiers are built only when an active component needs logits;
+        # at SOP-scale class counts an unused classifier head wastes millions
+        # of parameters.
+        objective_spec = cfg["distill"]["objective"]
+        objective_names = (
+            {objective_spec} if isinstance(objective_spec, str) else set(objective_spec)
+        )
+        needs_logits = "kl" in objective_names and float(cfg["distill"]["alpha"]) != 0.0
         num_classes = self.bundle.num_classes
+        student_classes = num_classes if ("sce" in head_cfg["losses"] or needs_logits) else None
+        teacher_classes = num_classes if needs_logits else None
+
         self.teacher = EmbeddingModel(
-            t_backbone, make_head(t_dim, cfg["teacher"]["embed_dim"]), num_classes
+            t_backbone, make_head(t_dim, cfg["teacher"]["embed_dim"]), teacher_classes
         )
         _load_teacher_weights(self.teacher, cfg["teacher"]["weights"])
         self.teacher.eval()
@@ -80,7 +93,7 @@ class DistillationRun:
             param.requires_grad_(False)
 
         self.student = EmbeddingModel(
-            s_backbone, make_head(s_dim, cfg["student"]["embed_dim"]), num_classes
+            s_backbone, make_head(s_dim, cfg["student"]["embed_dim"]), student_classes
         )
         self.objective = build_objective(cfg["distill"])
         self.task_loss = build_task_loss(head_cfg, cfg["student"]["embed_dim"], num_classes)

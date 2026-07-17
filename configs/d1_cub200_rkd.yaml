@@ -1,0 +1,40 @@
+# D1 variant: RKD (relational) objective. Computed in fp32 automatically.
+run:
+  tag: d1_rkd
+
+backbone_policy: supported
+teacher: {backbone: resnet50, weights: runs/teacher/best.pth, embed_dim: 512}
+student: {backbone: resnet18, pretrained: true, embed_dim: 512}
+
+head:
+  pooling: gem
+  normalize: true
+  losses: {sce: 1.0, triplet: 1.0}
+  triplet: {margin: 0.2, mining: batch_hard}
+
+distill:
+  objective: rkd
+  alpha: 1.0
+  rkd: {distance_weight: 1.0, angle_weight: 2.0}
+
+data:
+  adapter: cub200
+  root: data
+  input_size: 224
+  sampler: pk
+  p_classes: 16
+  k_samples: 4
+  num_workers: 8
+
+train:
+  epochs: 60
+  optimizer: adamw
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  scheduler: cosine
+  warmup_epochs: 2
+  amp: true
+  seed: 42
+  eval_every: 5
+
+eval: {batch_size: 256, report_retention: true}

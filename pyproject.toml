@@ -29,6 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 onnx = ["onnx>=1.15", "onnxruntime>=1.17"]
 plots = ["matplotlib>=3.7"]
+docs = ["mkdocs-material>=9.5"]
 dev = [
     "pytest>=8.0",
     "ruff>=0.4",

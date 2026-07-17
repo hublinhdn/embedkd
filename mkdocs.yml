@@ -1,0 +1,32 @@
+site_name: EmbedKD
+site_description: Reproducibility-first toolkit for distilling metric embeddings
+repo_url: https://github.com/embedkd/embedkd
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue grey
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install: getting-started/install.md
+      - Quickstart: getting-started/quickstart.md
+  - Concepts:
+      - Overview: concepts/overview.md
+      - Retrieval protocols: concepts/protocols.md
+      - Diagnostics: concepts/diagnostics.md
+  - Guides:
+      - Bring your own dataset: guides/bring-your-own-dataset.md
+      - Configuration reference: guides/configuration.md
+      - Choosing a teacher-student pair: guides/choosing-a-pair.md
+      - Deployment: guides/deploy.md
+      - Reproduce the paper: guides/reproduce.md
+  - Extend:
+      - Custom distillation objective: extend/custom-objective.md
+      - Custom task loss: extend/custom-task-loss.md
+      - Custom dataset adapter: extend/custom-dataset-adapter.md
+  - FAQ: faq.md
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - tables

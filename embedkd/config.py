@@ -68,6 +68,7 @@ DEFAULTS: dict[str, Any] = {
         "seed": 42,
         "early_stopping": None,
         "save_every": 0,
+        "eval_every": 1,
     },
     "eval": {"batch_size": 256, "metrics": ["map", "r1", "r5"], "report_retention": True},
 }

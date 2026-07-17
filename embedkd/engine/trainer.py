@@ -76,27 +76,33 @@ class Trainer:
         )
 
     def _forward_losses(self, images: torch.Tensor, labels: torch.Tensor, amp: bool):
+        alpha = float(self.cfg["distill"]["alpha"])
         autocast_ctx = torch.autocast(self.device.type, enabled=amp)
-        with torch.no_grad(), autocast_ctx:
-            t_out = self.teacher(images, return_logits=True)
-        t_emb, t_logits = t_out
         with autocast_ctx:
             s_emb, s_logits = self.student(images, return_logits=True)
         # fp32 island: all losses outside autocast on upcast tensors.
         s_emb32 = s_emb.float()
-        t_emb32 = t_emb.float()
         s_logits32 = s_logits.float() if s_logits is not None else None
-        t_logits32 = t_logits.float() if t_logits is not None else None
         task = self.task_loss(s_emb32, s_logits32, labels)
+        if alpha == 0.0:
+            # Standalone training (e.g. preparing a teacher): skip the teacher
+            # forward pass entirely instead of computing an unused objective.
+            return task, task, s_emb.new_zeros(())
+        with torch.no_grad(), autocast_ctx:
+            t_emb, t_logits = self.teacher(images, return_logits=True)
+        t_emb32 = t_emb.float()
+        t_logits32 = t_logits.float() if t_logits is not None else None
         distill = self.objective(s_emb32, t_emb32, s_logits=s_logits32, t_logits=t_logits32)
-        total = task + self.cfg["distill"]["alpha"] * distill
+        total = task + alpha * distill
         return total, task, distill
 
     def fit(self) -> dict:
         train_cfg = self.cfg["train"]
         generator = set_seed(train_cfg["seed"])
         self.student.to(self.device)
-        self.teacher.to(self.device).eval()
+        if float(self.cfg["distill"]["alpha"]) != 0.0:
+            self.teacher.to(self.device)
+        self.teacher.eval()
         self.task_loss.to(self.device)
         self.objective.to(self.device)
 
@@ -134,24 +140,26 @@ class Trainer:
                     sums["task"] += float(task.detach())
                     sums["distill"] += float(distill.detach())
                     steps += 1
-                metrics = self.evaluate()
                 record = {
                     "epoch": epoch,
                     "lr": optimizer.param_groups[0]["lr"],
                     **{k: v / max(1, steps) for k, v in sums.items()},
-                    **{f"val_{k}": v for k, v in metrics.items()},
                 }
+                eval_every = max(1, int(train_cfg.get("eval_every", 1)))
+                is_eval_epoch = (epoch + 1) % eval_every == 0 or epoch == train_cfg["epochs"] - 1
+                if is_eval_epoch:
+                    metrics = self.evaluate()
+                    record.update({f"val_{k}": v for k, v in metrics.items()})
+                    monitored = metrics.get("map", 0.0)
+                    if monitored > self.best["metric"]:
+                        self.best = {"metric": monitored, "epoch": epoch}
+                        self._save("best.pth", epoch)
+                        stale = 0
+                    else:
+                        stale += 1
                 self.history.append(record)
                 log_file.write(json.dumps(record) + "\n")
                 log_file.flush()
-
-                monitored = metrics.get("map", 0.0)
-                if monitored > self.best["metric"]:
-                    self.best = {"metric": monitored, "epoch": epoch}
-                    self._save("best.pth", epoch)
-                    stale = 0
-                else:
-                    stale += 1
                 self._save("last.pth", epoch)
                 if patience_cfg and stale >= int(patience_cfg.get("patience", 10)):
                     break

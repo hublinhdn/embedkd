@@ -136,11 +136,49 @@ def cmd_datasets(args) -> int:
     from .registry import registry
 
     if args.action == "list":
+        from .data.datasets_builtin import DOWNLOADABLE
+
         print("Registered adapters:", registry.available("dataset"))
-        print("Built-in downloadable datasets arrive with the reproduction demos (G3).")
+        for name, adapter in DOWNLOADABLE.items():
+            doc = (adapter.__doc__ or "").strip().splitlines()[0]
+            print(f"  {name:<10} {doc}")
         return 0
-    print(f"'datasets {args.action}' is not implemented yet in this development version.",
-          file=sys.stderr)
+
+    if args.action == "download":
+        from .data.datasets_builtin import DOWNLOADABLE
+        from .data.downloads import DownloadError
+
+        if not args.name or args.name not in DOWNLOADABLE:
+            print(f"Usage: embedkd datasets download <{'|'.join(DOWNLOADABLE)}> --root data/",
+                  file=sys.stderr)
+            return 1
+        try:
+            base = DOWNLOADABLE[args.name].download(args.root)
+        except DownloadError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        print(f"Dataset '{args.name}' ready at {base}")
+        return 0
+
+    if args.action == "validate":
+        from .data import format_validation, validate_dataset
+
+        if args.config:
+            data_cfg = resolve(args.config, args.set)["data"]
+        elif args.name and ":" in args.name:
+            adapter, root = args.name.split(":", 1)
+            data_cfg = {"adapter": adapter, "root": root, "manifest": None,
+                        "input_size": 224, "protocol": "gallery_query",
+                        "split": {"mode": "auto", "gallery_ratio": 0.5},
+                        "k_samples": 4, "target": None}
+        else:
+            print("Usage: embedkd datasets validate <adapter>:<root>  (or --config c.yaml)",
+                  file=sys.stderr)
+            return 1
+        report = validate_dataset(data_cfg)
+        print(format_validation(report))
+        return 1 if report["errors"] else 0
+
     return 1
 
 
@@ -197,6 +235,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("action", choices=["list", "download", "validate"])
     p.add_argument("name", nargs="?")
     p.add_argument("--root", default="data")
+    p.add_argument("--config")
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
     p.set_defaults(func=cmd_datasets)
 
     return parser
