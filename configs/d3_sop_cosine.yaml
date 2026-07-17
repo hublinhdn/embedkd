@@ -32,7 +32,7 @@ data:
 train:
   epochs: 30
   optimizer: adamw
-  lr: 3.0e-4
+  lr: 1.0e-4
   weight_decay: 1.0e-4
   scheduler: cosine
   warmup_epochs: 1

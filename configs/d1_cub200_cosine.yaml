@@ -22,6 +22,7 @@ head:
   losses:
     sce: 1.0
     triplet: 1.0
+  sce: {label_smoothing: 0.1}
   triplet: {margin: 0.2, mining: batch_hard}
 
 distill:
@@ -40,7 +41,7 @@ data:
 train:
   epochs: 60
   optimizer: adamw
-  lr: 3.0e-4
+  lr: 1.0e-4
   weight_decay: 1.0e-4
   scheduler: cosine
   warmup_epochs: 2

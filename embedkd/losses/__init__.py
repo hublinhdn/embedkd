@@ -22,7 +22,15 @@ class TaskLoss(nn.Module):
 
 @registry.task_loss("sce")
 class SoftmaxCrossEntropy(TaskLoss):
-    """Cross-entropy on the model's classifier logits."""
+    """Cross-entropy on the model's classifier logits.
+
+    Label smoothing tempers class-specific overfitting, which directly hurts
+    open-set retrieval generalisation.
+    """
+
+    def __init__(self, label_smoothing: float = 0.0):
+        super().__init__()
+        self.label_smoothing = float(label_smoothing)
 
     def forward(self, emb, logits, labels):
         if logits is None:
@@ -30,7 +38,7 @@ class SoftmaxCrossEntropy(TaskLoss):
                 "'sce' needs classifier logits; the model was built without a "
                 "classifier head (num_classes unknown)."
             )
-        return F.cross_entropy(logits, labels)
+        return F.cross_entropy(logits, labels, label_smoothing=self.label_smoothing)
 
 
 @registry.task_loss("arcface")
