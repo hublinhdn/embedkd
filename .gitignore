@@ -5,9 +5,10 @@ build/
 dist/
 .pytest_cache/
 .ruff_cache/
-runs/
-deploy_out/
-data/
+# Root-anchored: only the dataset/output dirs at repo root, NOT embedkd/data/
+/runs/
+/deploy_out/
+/data/
 *.pth
 *.onnx
 *.npy
