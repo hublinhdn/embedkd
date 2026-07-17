@@ -24,8 +24,10 @@ data:
   manifest: examples/epillid/manifest.csv
   input_size: 224
   sampler: pk
-  p_classes: 16
-  k_samples: 4
+  # ePillID classes are thin (median 2 images/class), so K=2 and a wider P
+  # keep the same batch size without heavy oversampling.
+  p_classes: 32
+  k_samples: 2
   num_workers: 8
 
 train:
