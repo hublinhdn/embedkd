@@ -24,8 +24,10 @@ class ConfigError(ValueError):
 DEFAULTS: dict[str, Any] = {
     "run": {"tag": None, "output_dir": "runs"},
     "backbone_policy": "supported",
-    "teacher": {"backbone": "resnet50", "weights": "random", "embed_dim": 512},
-    "student": {"backbone": "resnet18", "pretrained": True, "embed_dim": 512},
+    "teacher": {"backbone": "resnet50", "weights": "random", "embed_dim": 512,
+                "output_stride": None},
+    "student": {"backbone": "resnet18", "pretrained": True, "embed_dim": 512,
+                "output_stride": None},
     "head": {
         "pooling": "gem",
         "gem_p": 3.0,

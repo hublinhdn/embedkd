@@ -59,9 +59,11 @@ class DistillationRun:
             cfg["teacher"]["backbone"],
             pretrained=(cfg["teacher"]["weights"] == "pretrained"),
             policy=policy,
+            output_stride=cfg["teacher"].get("output_stride"),
         )
         s_backbone, s_dim = create_backbone(
-            cfg["student"]["backbone"], pretrained=cfg["student"]["pretrained"], policy=policy
+            cfg["student"]["backbone"], pretrained=cfg["student"]["pretrained"], policy=policy,
+            output_stride=cfg["student"].get("output_stride"),
         )
         head_cfg = cfg["head"]
 
