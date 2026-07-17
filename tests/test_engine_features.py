@@ -62,6 +62,34 @@ def test_teacher_checkpoint_roundtrip(tmp_path):
     assert result["history"][0]["distill"] > 0.0
 
 
+def test_two_tier_learning_rate_param_groups():
+    # Inherited anti-collapse recipe: pretrained backbone at ~1/10 head LR.
+    import torch
+
+    from embedkd.engine.trainer import _build_param_groups
+    from embedkd.losses import build_task_loss
+
+    from .utils import tiny_embedding_model
+
+    student = tiny_embedding_model(embed_dim=8, num_classes=4)
+    task_loss = build_task_loss({"losses": {"sce": 1.0}}, embed_dim=8, num_classes=4)
+
+    groups = _build_param_groups(student, task_loss, {"lr": 3e-4, "lr_backbone": None})
+    assert groups[0]["lr"] == pytest.approx(3e-5)  # backbone default = lr / 10
+    assert groups[1]["lr"] == pytest.approx(3e-4)
+
+    explicit = _build_param_groups(student, task_loss, {"lr": 3e-4, "lr_backbone": 1e-5})
+    assert explicit[0]["lr"] == pytest.approx(1e-5)
+
+    # Every trainable parameter is in exactly one group.
+    ids_backbone = {id(p) for p in groups[0]["params"]}
+    ids_head = {id(p) for p in groups[1]["params"]}
+    assert not ids_backbone & ids_head
+    total = len(list(student.parameters())) + len(list(task_loss.parameters()))
+    assert len(ids_backbone) + len(ids_head) == total
+    assert torch.optim.AdamW(groups, weight_decay=1e-4)  # constructible
+
+
 @pytest.mark.slow
 def test_eval_every_skips_intermediate_epochs(tmp_path):
     cfg = _cfg(tmp_path, train={"epochs": 3, "eval_every": 3, "amp": False,

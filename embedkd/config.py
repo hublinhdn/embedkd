@@ -31,16 +31,21 @@ DEFAULTS: dict[str, Any] = {
         "gem_p": 3.0,
         "gem_p_trainable": False,
         "normalize": True,
+        "logit_scale": 64.0,  # cosine-classifier scale for sce / kl logits
         "losses": {"sce": 1.0},
-        "arcface": {"margin": 0.5, "scale": 30.0},
+        "arcface": {"margin": 0.35, "scale": 64.0},
         "triplet": {"margin": 0.2, "mining": "batch_hard"},
-        "contrastive": {"margin": 0.5},
+        "contrastive": {"margin": 1.0},
     },
     "distill": {
         "objective": "cosine",
         "alpha": 10.0,
         "kl": {"temperature": 4.0},
-        "rkd": {"distance_weight": 1.0, "angle_weight": 2.0},
+        "rkd": {"distance_weight": 25.0, "angle_weight": 50.0},
+        # Relational objectives stay OFF until start_epoch (None = after LR
+        # warmup), then ramp 0 -> 1 over `epochs`. Pointwise objectives are
+        # unaffected. Inherited anti-collapse schedule.
+        "relational_ramp": {"start_epoch": None, "epochs": 5},
     },
     "data": {
         "adapter": "image_folder",
@@ -61,10 +66,12 @@ DEFAULTS: dict[str, Any] = {
         "batch_size": 64,
         "optimizer": "adamw",
         "lr": 1.0e-3,
+        "lr_backbone": None,  # None = lr / 10 (two-tier fine-tuning)
         "weight_decay": 1.0e-4,
         "scheduler": "cosine",
         "warmup_epochs": 1,
         "amp": True,
+        "grad_clip": 5.0,  # global-norm clipping after unscale (0 disables)
         "seed": 42,
         "early_stopping": None,
         "save_every": 0,

@@ -84,8 +84,10 @@ class DistillationRun:
         student_classes = num_classes if ("sce" in head_cfg["losses"] or needs_logits) else None
         teacher_classes = num_classes if needs_logits else None
 
+        logit_scale = float(head_cfg.get("logit_scale", 64.0))
         self.teacher = EmbeddingModel(
-            t_backbone, make_head(t_dim, cfg["teacher"]["embed_dim"]), teacher_classes
+            t_backbone, make_head(t_dim, cfg["teacher"]["embed_dim"]), teacher_classes,
+            logit_scale=logit_scale,
         )
         _load_teacher_weights(self.teacher, cfg["teacher"]["weights"])
         self.teacher.eval()
@@ -93,7 +95,8 @@ class DistillationRun:
             param.requires_grad_(False)
 
         self.student = EmbeddingModel(
-            s_backbone, make_head(s_dim, cfg["student"]["embed_dim"]), student_classes
+            s_backbone, make_head(s_dim, cfg["student"]["embed_dim"]), student_classes,
+            logit_scale=logit_scale,
         )
         self.objective = build_objective(cfg["distill"])
         self.task_loss = build_task_loss(head_cfg, cfg["student"]["embed_dim"], num_classes)

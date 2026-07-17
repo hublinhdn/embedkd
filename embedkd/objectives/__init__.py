@@ -22,6 +22,9 @@ class DistillObjective(nn.Module):
     """Base class. Subclasses implement forward(s_emb, t_emb, **extras)."""
 
     needs_fp32: bool = False
+    # Relational objectives (RKD-style) spike on an immature student embedding
+    # and can collapse training; the trainer ramps them in after warmup.
+    relational: bool = False
 
     def forward(
         self,
@@ -102,8 +105,11 @@ class RKDObjective(DistillObjective):
     """
 
     needs_fp32 = True
+    relational = True
 
-    def __init__(self, distance_weight: float = 1.0, angle_weight: float = 2.0) -> None:
+    def __init__(self, distance_weight: float = 25.0, angle_weight: float = 50.0) -> None:
+        # Defaults follow Park et al. (2019): 25 / 50. With these built in,
+        # distill.alpha stays ~1.0 for RKD configs.
         super().__init__()
         self.distance_weight = float(distance_weight)
         self.angle_weight = float(angle_weight)
@@ -141,21 +147,40 @@ class RKDObjective(DistillObjective):
 
 
 class CombinedObjective(DistillObjective):
-    """Weighted sum of named objectives; reports per-component values."""
+    """Weighted sum of named objectives; reports per-component values.
+
+    Inherited stability mechanics (from the authors' prior training code):
+    relational parts are scaled by ``relational_scale`` (the trainer ramps it
+    0 -> 1 after warmup), and any non-finite component is skipped and counted
+    rather than poisoning the whole step.
+    """
 
     def __init__(self, parts: dict[str, tuple[DistillObjective, float]]) -> None:
         super().__init__()
         self.weights = {name: float(w) for name, (_, w) in parts.items()}
         self.parts = nn.ModuleDict({name: obj for name, (obj, _) in parts.items()})
         self.needs_fp32 = any(obj.needs_fp32 for obj, _ in parts.values())
+        self.relational = any(obj.relational for obj, _ in parts.values())
+        self.nonfinite_count = 0
 
-    def forward(self, s_emb, t_emb, s_logits=None, t_logits=None):
+    def forward(self, s_emb, t_emb, s_logits=None, t_logits=None,
+                relational_scale: float = 1.0):
         total = s_emb.new_zeros(())
         components: dict[str, float] = {}
         for name, obj in self.parts.items():
+            weight = self.weights[name]
+            if obj.relational:
+                weight = weight * float(relational_scale)
+                if weight == 0.0:
+                    components[name] = 0.0
+                    continue
             value = obj(s_emb, t_emb, s_logits=s_logits, t_logits=t_logits)
+            if not torch.isfinite(value):
+                self.nonfinite_count += 1
+                components[name] = float("nan")
+                continue
             components[name] = float(value.detach())
-            total = total + self.weights[name] * value
+            total = total + weight * value
         self.last_components = components
         return total
 

@@ -14,7 +14,7 @@ head:
   pooling: gem
   normalize: true
   losses: {triplet: 1.0}
-  triplet: {margin: 0.2, mining: batch_hard}
+  triplet: {margin: 0.3, mining: batch_hard}
 
 distill:
   objective: cosine
@@ -32,10 +32,11 @@ data:
 train:
   epochs: 30
   optimizer: adamw
-  lr: 1.0e-4
-  weight_decay: 1.0e-4
+  lr: 3.0e-4
+  lr_backbone: 3.0e-5
+  weight_decay: 5.0e-2
   scheduler: cosine
-  warmup_epochs: 1
+  warmup_epochs: 5
   amp: true
   seed: 42
   eval_every: 5

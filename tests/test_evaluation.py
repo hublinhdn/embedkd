@@ -53,6 +53,23 @@ def test_r1_counts_top_hit():
     assert metrics["map"] == pytest.approx(1.0)
 
 
+def test_mrr_hand_computed():
+    # Query 1: first relevant at rank 1 -> 1.0 ; Query 2: first relevant at rank 2 -> 0.5
+    gallery = torch.tensor([[1.0, 0.0], [0.0, 1.0], [0.7, 0.7]])
+    gallery = torch.nn.functional.normalize(gallery, dim=-1)
+    g_labels = torch.tensor([0, 1, 1])
+    query = torch.nn.functional.normalize(torch.tensor([[1.0, 0.1], [0.9, 0.5]]), dim=-1)
+    q_labels = torch.tensor([0, 1])
+    metrics = retrieval_metrics(gallery, g_labels, query, q_labels, ks=(1,))
+    # q2 similarities: g0=0.874, g1=0.485, g2=0.961 -> ranking g2(rel,1st) => rr=1.0
+    # q1: g0=0.995(rel first) => rr=1.0 ; adjust q2 to hit rank 2 instead:
+    q2 = torch.nn.functional.normalize(torch.tensor([[1.0, 0.4]]), dim=-1)
+    metrics2 = retrieval_metrics(gallery, g_labels, q2, torch.tensor([1]), ks=(1,))
+    # similarities: g0=0.928, g2=0.919, g1=0.371 -> first relevant (label 1) at rank 2
+    assert metrics2["mrr"] == pytest.approx(0.5, abs=1e-6)
+    assert metrics["mrr"] == pytest.approx(1.0, abs=1e-6)
+
+
 def test_queries_without_relevant_are_skipped():
     gallery = torch.eye(2)
     g_labels = torch.tensor([0, 0])

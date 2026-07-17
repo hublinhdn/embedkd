@@ -32,7 +32,12 @@ class GeM(nn.Module):
 
 
 class EmbedHead(nn.Module):
-    """Pool backbone features to a fixed-size, optionally L2-normalised embedding."""
+    """Pool backbone features to a fixed-size, optionally L2-normalised embedding.
+
+    A BatchNorm1d "neck" sits between projection and normalisation (the BNNeck
+    of Luo et al., 2019): it decouples the classification logits from the
+    metric-learning embedding and measurably stabilises joint training.
+    """
 
     def __init__(
         self,
@@ -50,7 +55,8 @@ class EmbedHead(nn.Module):
         self.pooling = pooling
         self.normalize = normalize
         self.gem = GeM(gem_p, gem_p_trainable) if pooling == "gem" else None
-        self.proj = nn.Linear(in_dim, embed_dim)
+        self.proj = nn.Linear(in_dim, embed_dim, bias=False)
+        self.bn_neck = nn.BatchNorm1d(embed_dim)
         self._warned_token_fallback = False
 
     def _pool(self, feats: torch.Tensor) -> torch.Tensor:
@@ -75,21 +81,42 @@ class EmbedHead(nn.Module):
         raise ValueError(f"Unsupported feature shape {tuple(feats.shape)}")
 
     def forward(self, feats: torch.Tensor) -> torch.Tensor:
-        emb = self.proj(self._pool(feats))
+        emb = self.bn_neck(self.proj(self._pool(feats)))
         if self.normalize:
             emb = F.normalize(emb, dim=-1)
         return emb
 
 
-class EmbeddingModel(nn.Module):
-    """Backbone + EmbedHead (+ optional linear classifier for sce / kl)."""
+class CosineClassifier(nn.Module):
+    """Normalised-softmax classifier: cos(embedding, class weight) * scale.
 
-    def __init__(self, backbone: nn.Module, head: EmbedHead, num_classes: int | None = None) -> None:
+    A plain Linear on an L2-normalised embedding produces bounded, weakly
+    separated logits; scaling the cosine (s ~ 64) restores usable softmax
+    dynamics. Also the logits source for KL distillation.
+    """
+
+    def __init__(self, embed_dim: int, num_classes: int, scale: float = 64.0) -> None:
+        super().__init__()
+        self.weight = nn.Parameter(torch.empty(num_classes, embed_dim))
+        nn.init.xavier_uniform_(self.weight)
+        self.scale = float(scale)
+
+    def forward(self, emb: torch.Tensor) -> torch.Tensor:
+        cos = F.normalize(emb, dim=-1) @ F.normalize(self.weight, dim=-1).t()
+        return cos * self.scale
+
+
+class EmbeddingModel(nn.Module):
+    """Backbone + EmbedHead (+ optional cosine classifier for sce / kl)."""
+
+    def __init__(self, backbone: nn.Module, head: EmbedHead, num_classes: int | None = None,
+                 logit_scale: float = 64.0) -> None:
         super().__init__()
         self.backbone = backbone
         self.head = head
         self.classifier = (
-            nn.Linear(head.proj.out_features, num_classes) if num_classes else None
+            CosineClassifier(head.proj.out_features, num_classes, logit_scale)
+            if num_classes else None
         )
 
     @property

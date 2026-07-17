@@ -6,6 +6,8 @@ These train the retrieval task itself; distillation objectives live in
 
 from __future__ import annotations
 
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -43,22 +45,34 @@ class SoftmaxCrossEntropy(TaskLoss):
 
 @registry.task_loss("arcface")
 class ArcFace(TaskLoss):
-    """Additive angular margin loss (Deng et al., CVPR 2019)."""
+    """Additive angular margin loss (Deng et al., CVPR 2019).
 
-    def __init__(self, embed_dim: int, num_classes: int, margin: float = 0.5, scale: float = 30.0):
+    Numerically stable formulation (cos_m / sin_m expansion with the
+    theta + m > pi fallback) instead of acos, as proven in the authors' prior
+    training code. Defaults follow that code (margin 0.35, scale 64); for
+    low-capacity students a lighter margin (0.20-0.25) avoids underfitting.
+    """
+
+    def __init__(self, embed_dim: int, num_classes: int, margin: float = 0.35, scale: float = 64.0):
         super().__init__()
         self.weight = nn.Parameter(torch.empty(num_classes, embed_dim))
         nn.init.xavier_uniform_(self.weight)
         self.margin = float(margin)
         self.scale = float(scale)
+        self.cos_m = math.cos(self.margin)
+        self.sin_m = math.sin(self.margin)
+        self.th = math.cos(math.pi - self.margin)
+        self.mm = math.sin(math.pi - self.margin) * self.margin
 
     def forward(self, emb, logits, labels):
         cos = F.normalize(emb, dim=-1) @ F.normalize(self.weight, dim=-1).t()
         cos = cos.clamp(-1.0 + 1e-7, 1.0 - 1e-7)
-        theta = torch.acos(cos)
-        target = F.one_hot(labels, cos.shape[1]).bool()
-        cos_margin = torch.where(target, torch.cos(theta + self.margin), cos)
-        return F.cross_entropy(self.scale * cos_margin, labels)
+        sine = torch.sqrt((1.0 - cos.pow(2)).clamp(min=1e-12))
+        phi = cos * self.cos_m - sine * self.sin_m
+        phi = torch.where(cos > self.th, phi, cos - self.mm)
+        one_hot = F.one_hot(labels, cos.shape[1]).to(cos.dtype)
+        logits_margin = (one_hot * phi + (1.0 - one_hot) * cos) * self.scale
+        return F.cross_entropy(logits_margin, labels)
 
 
 def _pairwise_distances(e: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
@@ -102,9 +116,13 @@ class BatchHardTriplet(TaskLoss):
 
 @registry.task_loss("contrastive")
 class Contrastive(TaskLoss):
-    """Pairwise contrastive loss (Hadsell et al., 2006) over all in-batch pairs."""
+    """Pairwise contrastive loss (Hadsell et al., 2006) over all in-batch pairs.
 
-    def __init__(self, embed_dim: int = 0, num_classes: int = 0, margin: float = 0.5):
+    Squared form; ``margin`` is the negative-pair margin (positive margin 0),
+    matching the configuration proven in the authors' prior experiments.
+    """
+
+    def __init__(self, embed_dim: int = 0, num_classes: int = 0, margin: float = 1.0):
         super().__init__()
         self.margin = float(margin)
 

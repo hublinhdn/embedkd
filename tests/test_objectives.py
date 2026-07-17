@@ -92,3 +92,44 @@ def test_combined_objective_components_and_weights():
 def test_build_objective_passes_params():
     obj = build_objective({"objective": "kl", "kl": {"temperature": 2.5}})
     assert obj.parts["kl"].temperature == 2.5
+
+
+def test_relational_ramp_gates_rkd_only():
+    obj = build_objective({"objective": {"cosine": 1.0, "rkd": 1.0}})
+    assert obj.relational is True
+    s = torch.randn(6, 8)
+    t = torch.randn(6, 8)
+    gated = obj(s, t, relational_scale=0.0)
+    assert obj.last_components["rkd"] == 0.0  # gated off, not even computed
+    assert obj.last_components["cosine"] > 0.0  # pointwise unaffected
+    full = obj(s, t, relational_scale=1.0)
+    assert float(full) > float(gated)
+    assert obj.last_components["rkd"] > 0.0
+
+
+def test_nonfinite_component_is_skipped_and_counted():
+    from embedkd.objectives import CombinedObjective
+
+    class ExplodingObjective(CosineObjective):
+        def forward(self, s_emb, t_emb, **kw):
+            return s_emb.new_tensor(float("nan"))
+
+    obj = CombinedObjective({"boom": (ExplodingObjective(), 1.0),
+                             "cosine": (CosineObjective(), 1.0)})
+    s, t = torch.randn(4, 8), torch.randn(4, 8)
+    total = obj(s, t)
+    assert torch.isfinite(total)  # nan part skipped, cosine survives
+    assert obj.nonfinite_count == 1
+
+
+def test_trainer_relational_scale_schedule():
+    from embedkd.engine.trainer import Trainer
+
+    trainer = Trainer.__new__(Trainer)  # schedule logic only, no model build
+    trainer.cfg = {"distill": {"relational_ramp": {"start_epoch": None, "epochs": 5}},
+                   "train": {"warmup_epochs": 5}}
+    assert trainer._relational_scale(0) == 0.0
+    assert trainer._relational_scale(4) == 0.0
+    assert trainer._relational_scale(5) == pytest.approx(0.2)
+    assert trainer._relational_scale(9) == pytest.approx(1.0)
+    assert trainer._relational_scale(30) == 1.0

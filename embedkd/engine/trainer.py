@@ -22,12 +22,28 @@ from ..evaluation import evaluate_model
 from .seed import set_seed, worker_init_fn
 
 
-def _build_optimizer(params, train_cfg: dict) -> torch.optim.Optimizer:
+def _build_param_groups(student, task_loss, train_cfg: dict) -> list[dict]:
+    """Two-tier learning rate: pretrained backbone runs ~10x cooler than the
+    fresh head/classifier/loss parameters. Single-LR fine-tuning burns the
+    pretrained features and collapses open-set retrieval (inherited, proven
+    remedy from the authors' prior experiments)."""
+    lr_head = float(train_cfg["lr"])
+    lr_backbone = train_cfg.get("lr_backbone")
+    lr_backbone = lr_head / 10.0 if lr_backbone is None else float(lr_backbone)
+    head_params = [p for name, p in student.named_parameters()
+                   if not name.startswith("backbone.")]
+    return [
+        {"params": list(student.backbone.parameters()), "lr": lr_backbone},
+        {"params": head_params + list(task_loss.parameters()), "lr": lr_head},
+    ]
+
+
+def _build_optimizer(param_groups, train_cfg: dict) -> torch.optim.Optimizer:
     name = train_cfg["optimizer"]
     if name == "adamw":
-        return torch.optim.AdamW(params, lr=train_cfg["lr"], weight_decay=train_cfg["weight_decay"])
+        return torch.optim.AdamW(param_groups, weight_decay=train_cfg["weight_decay"])
     if name == "sgd":
-        return torch.optim.SGD(params, lr=train_cfg["lr"], momentum=0.9,
+        return torch.optim.SGD(param_groups, momentum=0.9,
                                weight_decay=train_cfg["weight_decay"])
     raise ValueError(f"Unknown optimizer '{name}' (use adamw | sgd)")
 
@@ -75,7 +91,21 @@ class Trainer:
             generator=generator, drop_last=True, **common,
         )
 
-    def _forward_losses(self, images: torch.Tensor, labels: torch.Tensor, amp: bool):
+    def _relational_scale(self, epoch: int) -> float:
+        """Maturation ramp for relational objectives (RKD-style), inherited:
+        relational terms spike on an immature student and can collapse
+        training, so they stay OFF until warmup ends, then ramp 0 -> 1."""
+        ramp_cfg = self.cfg["distill"].get("relational_ramp") or {}
+        start = ramp_cfg.get("start_epoch")
+        if start is None:
+            start = int(self.cfg["train"].get("warmup_epochs", 0))
+        ramp_epochs = max(1, int(ramp_cfg.get("epochs", 5)))
+        if epoch < start:
+            return 0.0
+        return min(1.0, (epoch - start + 1) / ramp_epochs)
+
+    def _forward_losses(self, images: torch.Tensor, labels: torch.Tensor, amp: bool,
+                        relational_scale: float = 1.0):
         alpha = float(self.cfg["distill"]["alpha"])
         autocast_ctx = torch.autocast(self.device.type, enabled=amp)
         with autocast_ctx:
@@ -92,7 +122,8 @@ class Trainer:
             t_emb, t_logits = self.teacher(images, return_logits=True)
         t_emb32 = t_emb.float()
         t_logits32 = t_logits.float() if t_logits is not None else None
-        distill = self.objective(s_emb32, t_emb32, s_logits=s_logits32, t_logits=t_logits32)
+        distill = self.objective(s_emb32, t_emb32, s_logits=s_logits32, t_logits=t_logits32,
+                                 relational_scale=relational_scale)
         total = task + alpha * distill
         return total, task, distill
 
@@ -106,8 +137,8 @@ class Trainer:
         self.task_loss.to(self.device)
         self.objective.to(self.device)
 
-        params = list(self.student.parameters()) + list(self.task_loss.parameters())
-        optimizer = _build_optimizer(params, train_cfg)
+        param_groups = _build_param_groups(self.student, self.task_loss, train_cfg)
+        optimizer = _build_optimizer(param_groups, train_cfg)
         base_lrs = [group["lr"] for group in optimizer.param_groups]
         amp = bool(train_cfg["amp"]) and self.device.type == "cuda"
         scaler = torch.amp.GradScaler(enabled=amp)
@@ -128,12 +159,19 @@ class Trainer:
                 self.student.train()
                 sums = {"total": 0.0, "task": 0.0, "distill": 0.0}
                 steps = 0
+                rel_scale = self._relational_scale(epoch)
+                grad_clip = float(train_cfg.get("grad_clip") or 0.0)
+                trained_params = [p for group in optimizer.param_groups for p in group["params"]]
                 for images, labels in loader:
                     images = images.to(self.device)
                     labels = torch.as_tensor(labels).to(self.device)
                     optimizer.zero_grad(set_to_none=True)
-                    total, task, distill = self._forward_losses(images, labels, amp)
+                    total, task, distill = self._forward_losses(
+                        images, labels, amp, relational_scale=rel_scale)
                     scaler.scale(total).backward()
+                    if grad_clip > 0:
+                        scaler.unscale_(optimizer)
+                        torch.nn.utils.clip_grad_norm_(trained_params, max_norm=grad_clip)
                     scaler.step(optimizer)
                     scaler.update()
                     sums["total"] += float(total.detach())
@@ -145,6 +183,11 @@ class Trainer:
                     "lr": optimizer.param_groups[0]["lr"],
                     **{k: v / max(1, steps) for k, v in sums.items()},
                 }
+                if rel_scale < 1.0 and getattr(self.objective, "relational", False):
+                    record["relational_scale"] = round(rel_scale, 4)
+                nonfinite = getattr(self.objective, "nonfinite_count", 0)
+                if nonfinite:
+                    record["distill_nonfinite_skips"] = nonfinite
                 eval_every = max(1, int(train_cfg.get("eval_every", 1)))
                 is_eval_epoch = (epoch + 1) % eval_every == 0 or epoch == train_cfg["epochs"] - 1
                 if is_eval_epoch:

@@ -56,7 +56,17 @@ def create_backbone(
             "not guaranteed for it.",
             stacklevel=2,
         )
-    model = timm.create_model(name, pretrained=pretrained, num_classes=0, global_pool="")
+    kwargs: dict = {"pretrained": pretrained, "num_classes": 0, "global_pool": ""}
+    # Stochastic depth 0.2 is the proven default for CNN fine-tuning in the
+    # authors' prior experiments; edge families predate drop_path support.
+    edge_families = ("ghostnet", "mobilenet", "shufflenet", "squeezenet", "repvgg")
+    if not any(family in name for family in edge_families):
+        kwargs["drop_path_rate"] = 0.2
+    try:
+        model = timm.create_model(name, **kwargs)
+    except TypeError:  # model family without drop_path support
+        kwargs.pop("drop_path_rate", None)
+        model = timm.create_model(name, **kwargs)
     return model, model.num_features
 
 

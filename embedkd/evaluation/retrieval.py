@@ -44,7 +44,7 @@ def retrieval_metrics(
 
     rel = relevant[has_match].float()
     if rel.numel() == 0:
-        return {"map": 0.0, **{f"r{k}": 0.0 for k in ks}, "num_queries": 0}
+        return {"map": 0.0, "mrr": 0.0, **{f"r{k}": 0.0 for k in ks}, "num_queries": 0}
 
     # Average precision per query: mean over relevant positions of
     # (number of relevant items up to that rank) / rank.
@@ -53,6 +53,12 @@ def retrieval_metrics(
     precision_at = cumulative / ranks
     ap = (precision_at * rel).sum(dim=1) / rel.sum(dim=1)
     metrics["map"] = float(ap.mean())
+
+    # Mean reciprocal rank of the FIRST relevant item. Reported alongside mAP
+    # because the authors' prior work scores class-level reciprocal rank;
+    # mrr is the closest image-level bridge to those historical numbers.
+    first_rank = rel.float().argmax(dim=1) + 1
+    metrics["mrr"] = float((1.0 / first_rank.float()).mean())
 
     for k in ks:
         metrics[f"r{k}"] = float(rel[:, :k].any(dim=1).float().mean())

@@ -5,7 +5,7 @@ from .backbones import (
     backbone_table,
     create_backbone,
 )
-from .head import EmbedHead, EmbeddingModel, GeM
+from .head import CosineClassifier, EmbedHead, EmbeddingModel, GeM
 
 __all__ = [
     "SUPPORTED_BACKBONES",
@@ -13,6 +13,7 @@ __all__ = [
     "BackboneNotValidatedError",
     "backbone_table",
     "create_backbone",
+    "CosineClassifier",
     "EmbedHead",
     "EmbeddingModel",
     "GeM",

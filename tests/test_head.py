@@ -35,11 +35,18 @@ def test_head_channels_last_features_are_fixed():
     assert head(bhwc).shape == (2, 8)
 
 
-def test_embedding_model_logits():
+def test_embedding_model_logits_are_scaled_cosines():
     model = tiny_embedding_model(embed_dim=8, num_classes=5)
     emb, logits = model(torch.rand(2, 3, 32, 32), return_logits=True)
     assert emb.shape == (2, 8)
     assert logits.shape == (2, 5)
+    # Cosine classifier: |logit| <= scale by construction.
+    assert float(logits.abs().max()) <= model.classifier.scale + 1e-4
+
+
+def test_head_has_bn_neck():
+    head = EmbedHead(16, 8)
+    assert hasattr(head, "bn_neck")  # BNNeck (Luo et al. 2019), inherited design
 
 
 def test_gem_head_onnx_export_is_safe(tmp_path):

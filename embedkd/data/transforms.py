@@ -44,14 +44,28 @@ class ImageTransform:
 
     def __init__(self, size: int, train: bool = False,
                  mean: tuple = IMAGENET_MEAN, std: tuple = IMAGENET_STD,
-                 crop_scale: tuple[float, float] = (0.5, 1.0),
-                 crop_ratio: tuple[float, float] = (3 / 4, 4 / 3)) -> None:
+                 crop_scale: tuple[float, float] = (0.8, 1.0),
+                 crop_ratio: tuple[float, float] = (3 / 4, 4 / 3),
+                 jitter: tuple[float, float] = (0.2, 0.1)) -> None:
         self.size = int(size)
         self.train = train
         self.crop_scale = crop_scale
         self.crop_ratio = crop_ratio
+        self.jitter = jitter  # (brightness, contrast) strengths
         self.mean = torch.tensor(mean).view(3, 1, 1)
         self.std = torch.tensor(std).view(3, 1, 1)
+
+    @staticmethod
+    def _color_jitter(img: Image.Image, brightness: float, contrast: float) -> Image.Image:
+        from PIL import ImageEnhance
+
+        if brightness > 0:
+            factor = 1.0 + (2.0 * float(torch.rand(())) - 1.0) * brightness
+            img = ImageEnhance.Brightness(img).enhance(factor)
+        if contrast > 0:
+            factor = 1.0 + (2.0 * float(torch.rand(())) - 1.0) * contrast
+            img = ImageEnhance.Contrast(img).enhance(factor)
+        return img
 
     def __call__(self, img: Image.Image) -> torch.Tensor:
         img = img.convert("RGB")
@@ -59,6 +73,7 @@ class ImageTransform:
             img = _random_resized_crop(img, self.size, self.crop_scale, self.crop_ratio)
             if torch.rand(()) < 0.5:
                 img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            img = self._color_jitter(img, *self.jitter)
         else:
             img = img.resize((self.size, self.size), Image.BILINEAR)
         arr = np.asarray(img, dtype=np.float32) / 255.0
