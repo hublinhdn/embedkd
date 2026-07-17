@@ -161,6 +161,7 @@ def cmd_datasets(args) -> int:
         return 0
 
     if args.action == "validate":
+        from .config import deep_update, parse_set_override
         from .data import format_validation, validate_dataset
 
         if args.config:
@@ -171,6 +172,9 @@ def cmd_datasets(args) -> int:
                         "input_size": 224, "protocol": "gallery_query",
                         "split": {"mode": "auto", "gallery_ratio": 0.5},
                         "k_samples": 4, "target": None}
+            for expr in args.set:  # accept both data.manifest=... and manifest=...
+                nested = parse_set_override(expr)
+                data_cfg = deep_update(data_cfg, nested.get("data", nested))
         else:
             print("Usage: embedkd datasets validate <adapter>:<root>  (or --config c.yaml)",
                   file=sys.stderr)
