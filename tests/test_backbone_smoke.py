@@ -29,6 +29,19 @@ def test_legacy_suffixes_rejected_with_hint():
         create_backbone("mobilenetv2_100_timm", policy="experimental")
 
 
+def test_torchvision_only_names_get_precise_guidance():
+    from embedkd.models import BackboneNotValidatedError
+
+    # Has a timm equivalent: point to it (with or without the _tv suffix).
+    with pytest.raises(BackboneNotValidatedError, match="mobilenetv3_large_100"):
+        create_backbone("mobilenet_v3_large", policy="experimental")
+    with pytest.raises(BackboneNotValidatedError, match="mobilenetv2_100"):
+        create_backbone("mobilenet_v2_tv", policy="experimental")
+    # No timm port: say so explicitly instead of a cryptic unknown-model error.
+    with pytest.raises(BackboneNotValidatedError, match="no timm port"):
+        create_backbone("shufflenet_v2_x1_0", policy="experimental")
+
+
 def test_output_stride_doubles_feature_resolution():
     # Last-stride retrieval trick, inherited: os=16 keeps a 14x14 map at 224px.
     backbone, dim = create_backbone("resnet18", policy="supported", output_stride=16)

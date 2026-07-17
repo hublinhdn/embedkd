@@ -79,12 +79,26 @@ def create_backbone(
     ``_timm`` name suffixes from the authors' prior code are rejected with
     an explanation rather than silently misinterpreted.
     """
-    if name.endswith(("_tv", "_timm")):
-        base = name.rsplit("_", 1)[0]
+    # Known torchvision-only names (the reason prior tooling had a second,
+    # '_tv' loader). Values: the timm equivalent, or None when there is none.
+    tv_only = {
+        "mobilenet_v2": "mobilenetv2_100",
+        "mobilenet_v3_large": "mobilenetv3_large_100",
+        "shufflenet_v2_x1_0": None,
+        "squeezenet1_0": None,
+    }
+    base = name.rsplit("_", 1)[0] if name.endswith(("_tv", "_timm")) else name
+    if name.endswith(("_tv", "_timm")) or base in tv_only:
+        equivalent = tv_only.get(base)
+        hint = (
+            f"Use the timm equivalent '{equivalent}'." if equivalent
+            else f"Try '{base}'." if base != name and base not in tv_only
+            else "This model has no timm port; torchvision-only models are outside "
+                 "EmbedKD's scope."
+        )
         raise BackboneNotValidatedError(
-            f"'{name}': EmbedKD loads all backbones via timm, so the '_tv'/'_timm' "
-            f"suffixes from prior tooling are not used. Try '{base}'. "
-            "(torchvision-only models are not supported.)"
+            f"'{name}': EmbedKD loads all backbones via timm (the '_tv'/'_timm' "
+            f"suffixes from prior tooling are not used). {hint}"
         )
     if name not in SUPPORTED_BACKBONES:
         if policy != "experimental":
