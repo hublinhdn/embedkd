@@ -1,0 +1,184 @@
+"""Training loop.
+
+Numerical-safety design: the backbone forward pass runs under autocast when
+AMP is enabled, but every loss (task and distillation) is computed in fp32 on
+upcast embeddings OUTSIDE the autocast region. Geometric losses such as RKD
+underflow in fp16 (tiny pairwise distances -> inf gradients -> GradScaler
+silently skips steps and training freezes), so fp32 loss computation is the
+default for everything, not an opt-in.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from pathlib import Path
+
+import torch
+from torch.utils.data import DataLoader
+
+from ..data.samplers import PKSampler
+from ..evaluation import evaluate_model
+from .seed import set_seed, worker_init_fn
+
+
+def _build_optimizer(params, train_cfg: dict) -> torch.optim.Optimizer:
+    name = train_cfg["optimizer"]
+    if name == "adamw":
+        return torch.optim.AdamW(params, lr=train_cfg["lr"], weight_decay=train_cfg["weight_decay"])
+    if name == "sgd":
+        return torch.optim.SGD(params, lr=train_cfg["lr"], momentum=0.9,
+                               weight_decay=train_cfg["weight_decay"])
+    raise ValueError(f"Unknown optimizer '{name}' (use adamw | sgd)")
+
+
+def _lr_scale(epoch: int, train_cfg: dict) -> float:
+    warmup = int(train_cfg.get("warmup_epochs", 0))
+    total = int(train_cfg["epochs"])
+    if warmup and epoch < warmup:
+        return (epoch + 1) / warmup
+    if train_cfg["scheduler"] == "cosine":
+        progress = (epoch - warmup) / max(1, total - warmup)
+        return 0.5 * (1.0 + math.cos(math.pi * min(1.0, progress)))
+    if train_cfg["scheduler"] == "step":
+        return 0.1 ** (epoch // max(1, total // 3))
+    return 1.0
+
+
+class Trainer:
+    def __init__(self, cfg, student, teacher, objective, task_loss, bundle, out_dir, device=None):
+        self.cfg = cfg
+        self.student = student
+        self.teacher = teacher
+        self.objective = objective
+        self.task_loss = task_loss
+        self.bundle = bundle
+        self.out_dir = Path(out_dir)
+        self.device = torch.device(
+            device or ("cuda" if torch.cuda.is_available() else "cpu")
+        )
+        self.history: list[dict] = []
+        self.best = {"metric": -1.0, "epoch": -1}
+
+    def _train_loader(self, generator: torch.Generator) -> DataLoader:
+        data_cfg = self.cfg["data"]
+        common = dict(num_workers=data_cfg["num_workers"], worker_init_fn=worker_init_fn)
+        if data_cfg["sampler"] == "pk":
+            self.pk_sampler = PKSampler(
+                self.bundle.train_labels, data_cfg["p_classes"], data_cfg["k_samples"],
+                seed=self.cfg["train"]["seed"],
+            )
+            return DataLoader(self.bundle.train, batch_sampler=self.pk_sampler, **common)
+        self.pk_sampler = None
+        return DataLoader(
+            self.bundle.train, batch_size=self.cfg["train"]["batch_size"], shuffle=True,
+            generator=generator, drop_last=True, **common,
+        )
+
+    def _forward_losses(self, images: torch.Tensor, labels: torch.Tensor, amp: bool):
+        autocast_ctx = torch.autocast(self.device.type, enabled=amp)
+        with torch.no_grad(), autocast_ctx:
+            t_out = self.teacher(images, return_logits=True)
+        t_emb, t_logits = t_out
+        with autocast_ctx:
+            s_emb, s_logits = self.student(images, return_logits=True)
+        # fp32 island: all losses outside autocast on upcast tensors.
+        s_emb32 = s_emb.float()
+        t_emb32 = t_emb.float()
+        s_logits32 = s_logits.float() if s_logits is not None else None
+        t_logits32 = t_logits.float() if t_logits is not None else None
+        task = self.task_loss(s_emb32, s_logits32, labels)
+        distill = self.objective(s_emb32, t_emb32, s_logits=s_logits32, t_logits=t_logits32)
+        total = task + self.cfg["distill"]["alpha"] * distill
+        return total, task, distill
+
+    def fit(self) -> dict:
+        train_cfg = self.cfg["train"]
+        generator = set_seed(train_cfg["seed"])
+        self.student.to(self.device)
+        self.teacher.to(self.device).eval()
+        self.task_loss.to(self.device)
+        self.objective.to(self.device)
+
+        params = list(self.student.parameters()) + list(self.task_loss.parameters())
+        optimizer = _build_optimizer(params, train_cfg)
+        base_lrs = [group["lr"] for group in optimizer.param_groups]
+        amp = bool(train_cfg["amp"]) and self.device.type == "cuda"
+        scaler = torch.amp.GradScaler(enabled=amp)
+        loader = self._train_loader(generator)
+
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        log_path = self.out_dir / "log.jsonl"
+        patience_cfg = train_cfg.get("early_stopping") or None
+        stale = 0
+
+        with open(log_path, "a", encoding="utf-8") as log_file:
+            for epoch in range(train_cfg["epochs"]):
+                if self.pk_sampler is not None:
+                    self.pk_sampler.set_epoch(epoch)
+                scale = _lr_scale(epoch, train_cfg)
+                for group, base in zip(optimizer.param_groups, base_lrs):
+                    group["lr"] = base * scale
+                self.student.train()
+                sums = {"total": 0.0, "task": 0.0, "distill": 0.0}
+                steps = 0
+                for images, labels in loader:
+                    images = images.to(self.device)
+                    labels = torch.as_tensor(labels).to(self.device)
+                    optimizer.zero_grad(set_to_none=True)
+                    total, task, distill = self._forward_losses(images, labels, amp)
+                    scaler.scale(total).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                    sums["total"] += float(total.detach())
+                    sums["task"] += float(task.detach())
+                    sums["distill"] += float(distill.detach())
+                    steps += 1
+                metrics = self.evaluate()
+                record = {
+                    "epoch": epoch,
+                    "lr": optimizer.param_groups[0]["lr"],
+                    **{k: v / max(1, steps) for k, v in sums.items()},
+                    **{f"val_{k}": v for k, v in metrics.items()},
+                }
+                self.history.append(record)
+                log_file.write(json.dumps(record) + "\n")
+                log_file.flush()
+
+                monitored = metrics.get("map", 0.0)
+                if monitored > self.best["metric"]:
+                    self.best = {"metric": monitored, "epoch": epoch}
+                    self._save("best.pth", epoch)
+                    stale = 0
+                else:
+                    stale += 1
+                self._save("last.pth", epoch)
+                if patience_cfg and stale >= int(patience_cfg.get("patience", 10)):
+                    break
+
+        return {
+            "history": self.history,
+            "best": self.best,
+            "checkpoints": {name: str(self.out_dir / f"{name}.pth") for name in ("best", "last")},
+        }
+
+    def evaluate(self, target: bool = False) -> dict[str, float]:
+        gallery = self.bundle.target_gallery if target else self.bundle.gallery
+        query = self.bundle.target_query if target else self.bundle.query
+        if gallery is None or query is None:
+            raise ValueError("No target split available; configure data.protocol: cross_domain")
+        return evaluate_model(
+            self.student, gallery, query,
+            batch_size=self.cfg["eval"]["batch_size"], device=self.device,
+        )
+
+    def _save(self, name: str, epoch: int) -> None:
+        torch.save(
+            {
+                "state_dict": self.student.state_dict(),
+                "task_loss_state": self.task_loss.state_dict(),
+                "config": self.cfg,
+                "epoch": epoch,
+            },
+            self.out_dir / name,
+        )

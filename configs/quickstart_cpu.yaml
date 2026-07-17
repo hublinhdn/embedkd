@@ -1,0 +1,52 @@
+# CPU quickstart: verifies the full pipeline (fit -> eval -> diagnose -> deploy)
+# in a few minutes on a laptop, with no downloads and no GPU.
+# It demonstrates the MECHANICS, not real distillation quality: the teacher is
+# randomly initialised on purpose so nothing needs to be downloaded.
+run:
+  tag: quickstart
+
+backbone_policy: supported
+
+teacher:
+  backbone: resnet18
+  weights: random
+  embed_dim: 128
+
+student:
+  backbone: resnet18
+  pretrained: false
+  embed_dim: 128
+
+head:
+  pooling: gem
+  normalize: true
+  losses:
+    sce: 1.0
+    triplet: 1.0
+
+distill:
+  objective: cosine
+  alpha: 1.0
+
+data:
+  adapter: synthetic
+  input_size: 64
+  sampler: pk
+  p_classes: 4
+  k_samples: 4
+  num_workers: 0
+  synthetic:
+    num_classes: 4
+    per_class: 24
+
+train:
+  epochs: 2
+  optimizer: adamw
+  lr: 1.0e-3
+  scheduler: cosine
+  warmup_epochs: 0
+  amp: false
+  seed: 42
+
+eval:
+  batch_size: 64

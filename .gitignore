@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+runs/
+deploy_out/
+data/
+*.pth
+*.onnx
+*.npy
+.DS_Store
+
+# Internal planning documents are not part of the public repository.
+planning/
+pdf_refs/
+CLAUDE.md
