@@ -16,7 +16,10 @@ def test_pk_sampler_batches_have_p_classes_k_samples():
     labels = [i // 10 for i in range(60)]  # 6 classes x 10
     sampler = PKSampler(labels, p_classes=3, k_samples=4, seed=1)
     batches = list(sampler)
-    assert len(batches) == 2
+    # An epoch covers ~the whole dataset: 60 images / (3*4) = 5 batches,
+    # NOT num_classes // P = 2 (regression guard: that bug shrank training
+    # by an order of magnitude on many-images-per-class datasets).
+    assert len(batches) == len(sampler) == 5
     for batch in batches:
         assert len(batch) == 12
         classes = {labels[i] for i in batch}
