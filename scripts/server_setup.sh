@@ -17,7 +17,9 @@ source .venv/bin/activate
 python -m pip install --upgrade pip -q
 
 echo "== Installing torch (CUDA) and embedkd =="
-pip install torch --index-url https://download.pytorch.org/whl/cu121 -q
+# torch and torchvision from the SAME index (timm depends on torchvision;
+# mixing indexes causes "operator torchvision::nms does not exist").
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 -q
 pip install -e ".[dev,onnx,plots]" -q
 
 echo "== Environment sanity: test suite (CPU, ~10s) =="
