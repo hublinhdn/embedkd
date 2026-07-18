@@ -14,6 +14,8 @@ examples/epillid/manifest.csv
 /runs/
 /deploy_out/
 /data/
+/logs/
+sop_download.log
 *.pth
 *.onnx
 *.npy

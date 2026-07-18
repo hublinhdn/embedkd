@@ -39,3 +39,6 @@ def test_generates_spec_with_seed_tolerances(tmp_path):
     assert set(spec["all_rows"]) == {"cosine", "mse"}
     assert spec["all_rows"]["mse"]["map"]["value"] == 0.55
     assert spec["checkpoint"].endswith("best.pth")
+    # Committed specs must be machine-portable: repo-relative, never absolute.
+    assert not spec["checkpoint"].startswith("/")
+    assert spec["checkpoint"].startswith("runs/")

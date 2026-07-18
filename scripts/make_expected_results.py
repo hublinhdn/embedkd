@@ -81,10 +81,14 @@ def main() -> None:
         }
 
     checkpoint_tag = args.checkpoint_tag or primary_tag
+    # Repo-relative: the committed spec must not leak machine-local absolute
+    # paths, and reproduce --eval-only resolves it from the repo root (the
+    # released checkpoint is attached to the matching GitHub Release).
+    checkpoint_rel = (latest_run_dir(checkpoint_tag) / "best.pth").relative_to(REPO)
     spec = {
         "demo_id": args.demo_id,
         "config": args.config,
-        "checkpoint": str(latest_run_dir(checkpoint_tag) / "best.pth"),
+        "checkpoint": str(checkpoint_rel),
         "seed_replicates": args.seed_runs,
         # 'expected' drives embedkd reproduce; it checks the primary row.
         "expected": rows[args.runs[0].split(":", 1)[1]],
