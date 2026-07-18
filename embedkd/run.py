@@ -91,7 +91,10 @@ class DistillationRun:
             t_backbone, make_head(t_dim, cfg["teacher"]["embed_dim"]), teacher_classes,
             logit_scale=logit_scale,
         )
-        _load_teacher_weights(self.teacher, cfg["teacher"]["weights"])
+        if float(cfg["distill"]["alpha"]) != 0.0:
+            _load_teacher_weights(self.teacher, cfg["teacher"]["weights"])
+        # alpha == 0 is standalone training: the teacher is unused, so a
+        # placeholder weights path in the config must not be an error.
         self.teacher.eval()
         for param in self.teacher.parameters():
             param.requires_grad_(False)

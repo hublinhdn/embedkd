@@ -30,6 +30,18 @@ def _cfg(tmp_path, **extra):
 
 
 @pytest.mark.slow
+def test_alpha_zero_ignores_missing_teacher_checkpoint(tmp_path):
+    # Standalone runs launched from a distill config (--set distill.alpha=0)
+    # must not trip over the config's placeholder teacher weights path.
+    cfg = _cfg(tmp_path,
+               teacher={"backbone": "resnet18", "weights": "runs/does_not_exist.pth",
+                        "embed_dim": 16},
+               distill={"objective": "cosine", "alpha": 0.0})
+    run = DistillationRun(copy.deepcopy(cfg), device="cpu")
+    assert run.student is not None
+
+
+@pytest.mark.slow
 def test_alpha_zero_trains_standalone_and_skips_teacher(tmp_path):
     cfg = _cfg(tmp_path, distill={"objective": "cosine", "alpha": 0.0})
     run = DistillationRun(copy.deepcopy(cfg), device="cpu")
