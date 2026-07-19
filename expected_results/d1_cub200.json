@@ -1,0 +1,72 @@
+{
+  "demo_id": "d1_cub200",
+  "config": "configs/d1_cub200_cosine.yaml",
+  "checkpoint": "runs/20260717_164702_d1_cosine_s42/best.pth",
+  "seed_replicates": [
+    "d1_cosine_s42",
+    "d1_cosine_s43",
+    "d1_cosine_s44"
+  ],
+  "expected": {
+    "map": {
+      "value": 0.2882,
+      "tolerance": 0.005
+    },
+    "r1": {
+      "value": 0.5169,
+      "tolerance": 0.007
+    }
+  },
+  "all_rows": {
+    "cosine": {
+      "map": {
+        "value": 0.2882,
+        "tolerance": 0.005
+      },
+      "r1": {
+        "value": 0.5169,
+        "tolerance": 0.007
+      }
+    },
+    "mse": {
+      "map": {
+        "value": 0.2844,
+        "tolerance": 0.005
+      },
+      "r1": {
+        "value": 0.5159,
+        "tolerance": 0.007
+      }
+    },
+    "kl": {
+      "map": {
+        "value": 0.2798,
+        "tolerance": 0.005
+      },
+      "r1": {
+        "value": 0.5119,
+        "tolerance": 0.007
+      }
+    },
+    "rkd": {
+      "map": {
+        "value": 0.2865,
+        "tolerance": 0.005
+      },
+      "r1": {
+        "value": 0.5234,
+        "tolerance": 0.007
+      }
+    },
+    "no_kd": {
+      "map": {
+        "value": 0.2844,
+        "tolerance": 0.005
+      },
+      "r1": {
+        "value": 0.5139,
+        "tolerance": 0.007
+      }
+    }
+  }
+}

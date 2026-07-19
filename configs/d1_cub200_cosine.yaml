@@ -1,0 +1,57 @@
+# D1: distill CUB-200 teacher (ResNet50, from d1_cub200_teacher.yaml) into
+# ResNet18 with the cosine objective. The other three objectives reuse this
+# file and override only the distill block (see d1_cub200_{mse,kl,rkd}.yaml).
+run:
+  tag: d1_cosine
+
+backbone_policy: supported
+
+teacher:
+  backbone: resnet50
+  weights: runs/teacher/best.pth    # override with --set teacher.weights=<path>
+  embed_dim: 512
+
+student:
+  backbone: resnet18
+  pretrained: true
+  embed_dim: 512
+
+head:
+  pooling: gem
+  normalize: true
+  losses:
+    sce: 1.0
+    arcface: 0.2
+    triplet: 1.0
+    contrastive: 1.0
+  sce: {label_smoothing: 0.1}
+  triplet: {margin: 0.3, mining: batch_hard}
+
+distill:
+  objective: cosine
+  alpha: 10.0
+
+data:
+  adapter: cub200
+  root: data
+  input_size: 224
+  sampler: pk
+  p_classes: 16
+  k_samples: 4
+  num_workers: 8
+
+train:
+  epochs: 60
+  optimizer: adamw
+  lr: 3.0e-4
+  lr_backbone: 3.0e-5
+  weight_decay: 5.0e-2
+  scheduler: cosine
+  warmup_epochs: 5
+  amp: true
+  seed: 42
+  eval_every: 5
+
+eval:
+  batch_size: 256
+  report_retention: true

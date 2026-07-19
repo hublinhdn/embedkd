@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Generated deterministically by examples/epillid/prepare_manifest.py
+examples/epillid/manifest.csv
+# Root-anchored: only the dataset/output dirs at repo root, NOT embedkd/data/
+/runs/
+/deploy_out/
+/data/
+/logs/
+/figures/
+sop_download.log
+*.pth
+*.onnx
+*.npy
+.DS_Store
+
+# Internal planning documents are not part of the public repository.
+planning/
+pdf_refs/
+CLAUDE.md

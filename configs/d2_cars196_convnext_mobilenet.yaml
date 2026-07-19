@@ -1,0 +1,44 @@
+# D2: cross-family distillation on Cars196 (ConvNeXt-Tiny -> MobileNetV3).
+# Teacher: train first with this same file plus
+#   --set run.tag=d2_teacher --set student.backbone=convnext_tiny --set distill.alpha=0
+# then point teacher.weights at its best.pth.
+run:
+  tag: d2_cosine
+
+backbone_policy: supported
+teacher: {backbone: convnext_tiny, weights: runs/d2_teacher/best.pth, embed_dim: 512}
+student: {backbone: mobilenetv3_large_100, pretrained: true, embed_dim: 512}
+
+head:
+  pooling: gem
+  normalize: true
+  losses: {sce: 1.0, arcface: 0.2, triplet: 1.0, contrastive: 1.0}
+  sce: {label_smoothing: 0.1}
+  triplet: {margin: 0.3, mining: batch_hard}
+
+distill:
+  objective: cosine
+  alpha: 10.0
+
+data:
+  adapter: cars196
+  root: data
+  input_size: 224
+  sampler: pk
+  p_classes: 16
+  k_samples: 4
+  num_workers: 8
+
+train:
+  epochs: 60
+  optimizer: adamw
+  lr: 3.0e-4
+  lr_backbone: 3.0e-5
+  weight_decay: 5.0e-2
+  scheduler: cosine
+  warmup_epochs: 5
+  amp: true
+  seed: 42
+  eval_every: 5
+
+eval: {batch_size: 256, report_retention: true}

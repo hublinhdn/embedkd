@@ -1,0 +1,57 @@
+# D1 step 0: train the ResNet50 teacher on CUB-200-2011 (no distillation).
+# distill.alpha: 0 means the teacher branch is skipped entirely; the "student"
+# trained here IS the future teacher. Its best.pth feeds the d1_cub200_*.yaml runs.
+run:
+  tag: d1_teacher_resnet50
+
+backbone_policy: supported
+
+teacher:            # unused at alpha=0; kept minimal
+  backbone: resnet18
+  weights: random
+  embed_dim: 512
+
+student:            # this is the network being trained (the future teacher)
+  backbone: resnet50
+  pretrained: true
+  embed_dim: 512
+
+head:
+  pooling: gem
+  normalize: true
+  losses:
+    sce: 1.0
+    arcface: 0.2
+    triplet: 1.0
+    contrastive: 1.0
+  sce: {label_smoothing: 0.1}
+  triplet: {margin: 0.3, mining: batch_hard}
+
+distill:
+  objective: cosine
+  alpha: 0.0
+
+data:
+  adapter: cub200
+  root: data
+  input_size: 224
+  sampler: pk
+  p_classes: 16
+  k_samples: 4
+  num_workers: 8
+
+train:
+  epochs: 60
+  optimizer: adamw
+  lr: 3.0e-4
+  lr_backbone: 3.0e-5
+  weight_decay: 5.0e-2
+  scheduler: cosine
+  warmup_epochs: 5
+  amp: true
+  seed: 42
+  eval_every: 5
+
+eval:
+  batch_size: 256
+  report_retention: false

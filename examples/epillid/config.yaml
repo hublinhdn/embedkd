@@ -1,0 +1,46 @@
+# D4 case study: distill on ePillID via the generic csv_manifest adapter.
+# Prerequisites: prepare_manifest.py (see README.md in this directory) and a
+# teacher trained with --set distill.alpha=0 (same recipe as D1).
+run:
+  tag: d4_epillid_cosine
+
+backbone_policy: supported
+teacher: {backbone: resnet50, weights: runs/d4_teacher/best.pth, embed_dim: 512}
+student: {backbone: resnet18, pretrained: true, embed_dim: 512}
+
+head:
+  pooling: gem
+  normalize: true
+  losses: {sce: 1.0, arcface: 0.2, triplet: 1.0, contrastive: 1.0}
+  sce: {label_smoothing: 0.1}
+  triplet: {margin: 0.3, mining: batch_hard}
+
+distill:
+  objective: cosine
+  alpha: 10.0
+
+data:
+  adapter: csv_manifest
+  root: null                      # --set data.root=<ePillID images root>
+  manifest: examples/epillid/manifest.csv
+  input_size: 224
+  sampler: pk
+  # ePillID classes are thin (median 2 images/class), so K=2 and a wider P
+  # keep the same batch size without heavy oversampling.
+  p_classes: 32
+  k_samples: 2
+  num_workers: 8
+
+train:
+  epochs: 60
+  optimizer: adamw
+  lr: 3.0e-4
+  lr_backbone: 3.0e-5
+  weight_decay: 5.0e-2
+  scheduler: cosine
+  warmup_epochs: 5
+  amp: true
+  seed: 42
+  eval_every: 5
+
+eval: {batch_size: 256, report_retention: true}
