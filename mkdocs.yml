@@ -11,6 +11,7 @@ nav:
   - Getting started:
       - Install: getting-started/install.md
       - Quickstart: getting-started/quickstart.md
+      - Tutorial, your own dataset: getting-started/tutorial.md
   - Concepts:
       - Overview: concepts/overview.md
       - Retrieval protocols: concepts/protocols.md

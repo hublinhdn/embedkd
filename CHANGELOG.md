@@ -3,6 +3,17 @@
 All notable changes to EmbedKD are documented here. The project follows
 semantic versioning; the config schema is part of the public API.
 
+## Unreleased
+
+Additive only; published v0.1.0 numbers are unaffected.
+
+- Per-component loss values logged each epoch (`task_sce`, `distill_rkd`,
+  ...) alongside the aggregate task/distill losses.
+- New-user tutorial (`docs/getting-started/tutorial.md`), executed by the
+  test suite.
+- Configuration reference synced with the full current schema
+  (lr_backbone, grad_clip, relational_ramp, logit_scale, output_stride).
+
 ## 0.1.0 - 2026-07-19
 
 First release. Ships the complete D1-D5 reproduction suite
