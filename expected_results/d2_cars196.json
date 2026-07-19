@@ -2,36 +2,40 @@
   "demo_id": "d2_cars196",
   "config": "configs/d2_cars196_convnext_mobilenet.yaml",
   "checkpoint": "runs/20260718_084411_d2_cosine_s42/best.pth",
-  "seed_replicates": [],
+  "seed_replicates": [
+    "d2_cosine_s42",
+    "d2_cosine_s43",
+    "d2_cosine_s44"
+  ],
   "expected": {
     "map": {
       "value": 0.2797,
-      "tolerance": 0.02
+      "tolerance": 0.005
     },
     "r1": {
       "value": 0.6405,
-      "tolerance": 0.02
+      "tolerance": 0.005
     }
   },
   "all_rows": {
     "cosine": {
       "map": {
         "value": 0.2797,
-        "tolerance": 0.02
+        "tolerance": 0.005
       },
       "r1": {
         "value": 0.6405,
-        "tolerance": 0.02
+        "tolerance": 0.005
       }
     },
     "no_kd": {
       "map": {
         "value": 0.2289,
-        "tolerance": 0.02
+        "tolerance": 0.005
       },
       "r1": {
         "value": 0.5969,
-        "tolerance": 0.02
+        "tolerance": 0.005
       }
     }
   }

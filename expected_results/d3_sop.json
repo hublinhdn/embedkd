@@ -1,0 +1,38 @@
+{
+  "demo_id": "d3_sop",
+  "config": "configs/d3_sop_cosine.yaml",
+  "checkpoint": "runs/20260719_030413_d3_cosine_s42/best.pth",
+  "seed_replicates": [],
+  "expected": {
+    "map": {
+      "value": 0.5484,
+      "tolerance": 0.02
+    },
+    "r1": {
+      "value": 0.7294,
+      "tolerance": 0.02
+    }
+  },
+  "all_rows": {
+    "cosine": {
+      "map": {
+        "value": 0.5484,
+        "tolerance": 0.02
+      },
+      "r1": {
+        "value": 0.7294,
+        "tolerance": 0.02
+      }
+    },
+    "no_kd": {
+      "map": {
+        "value": 0.5296,
+        "tolerance": 0.02
+      },
+      "r1": {
+        "value": 0.7197,
+        "tolerance": 0.02
+      }
+    }
+  }
+}

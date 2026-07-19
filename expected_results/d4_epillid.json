@@ -1,0 +1,38 @@
+{
+  "demo_id": "d4_epillid",
+  "config": "examples/epillid/config.yaml",
+  "checkpoint": "runs/20260719_054835_d4_cosine_s42/best.pth",
+  "seed_replicates": [],
+  "expected": {
+    "map": {
+      "value": 0.4876,
+      "tolerance": 0.02
+    },
+    "r1": {
+      "value": 0.4869,
+      "tolerance": 0.02
+    }
+  },
+  "all_rows": {
+    "cosine": {
+      "map": {
+        "value": 0.4876,
+        "tolerance": 0.02
+      },
+      "r1": {
+        "value": 0.4869,
+        "tolerance": 0.02
+      }
+    },
+    "no_kd": {
+      "map": {
+        "value": 0.453,
+        "tolerance": 0.02
+      },
+      "r1": {
+        "value": 0.4528,
+        "tolerance": 0.02
+      }
+    }
+  }
+}
