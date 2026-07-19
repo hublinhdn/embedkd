@@ -158,6 +158,7 @@ class Trainer:
                     group["lr"] = base * scale
                 self.student.train()
                 sums = {"total": 0.0, "task": 0.0, "distill": 0.0}
+                component_sums: dict[str, float] = {}
                 steps = 0
                 rel_scale = self._relational_scale(epoch)
                 grad_clip = float(train_cfg.get("grad_clip") or 0.0)
@@ -177,11 +178,19 @@ class Trainer:
                     sums["total"] += float(total.detach())
                     sums["task"] += float(task.detach())
                     sums["distill"] += float(distill.detach())
+                    # Per-component values (unweighted) so users can see what
+                    # each configured loss actually contributes.
+                    for prefix, module in (("task", self.task_loss),
+                                           ("distill", self.objective)):
+                        for name, value in getattr(module, "last_components", {}).items():
+                            key = f"{prefix}_{name}"
+                            component_sums[key] = component_sums.get(key, 0.0) + value
                     steps += 1
                 record = {
                     "epoch": epoch,
                     "lr": optimizer.param_groups[0]["lr"],
                     **{k: v / max(1, steps) for k, v in sums.items()},
+                    **{k: round(v / max(1, steps), 6) for k, v in component_sums.items()},
                 }
                 if rel_scale < 1.0 and getattr(self.objective, "relational", False):
                     record["relational_scale"] = round(rel_scale, 4)
