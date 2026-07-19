@@ -3,9 +3,12 @@
 All notable changes to EmbedKD are documented here. The project follows
 semantic versioning; the config schema is part of the public API.
 
-## Unreleased (0.1.0.dev0)
+## 0.1.0 - 2026-07-19
 
-First development snapshot.
+First release. Ships the complete D1-D5 reproduction suite
+(`expected_results/`, REPRODUCE.md) with released checkpoints; verified
+end-to-end with `embedkd reproduce d1_cub200 --eval-only` (PASS, bit-exact
+on the reference machine).
 
 - Distillation objectives: cosine, mse, kl, rkd (fp32-safe), weighted combos,
   registry for user objectives.
