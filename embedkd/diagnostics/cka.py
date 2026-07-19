@@ -95,13 +95,19 @@ def compatibility_report(
     cka = linear_cka(t_emb, s_emb)
     t_params = _num_params(teacher)
     s_params = _num_params(student)
+    # Capacity is compared on backbones: classifier heads scale with the class
+    # count (an 11.6M-parameter head at SOP scale) and would distort the ratio.
+    t_backbone = _num_params(getattr(teacher, "backbone", teacher))
+    s_backbone = _num_params(getattr(student, "backbone", student))
     risk = _risk_level(cka)
     return {
         "cka_pre": round(cka, 4),
         "cka_rbf_pre": round(rbf_cka(t_emb, s_emb), 4),
         "teacher_params": t_params,
         "student_params": s_params,
-        "capacity_ratio": round(t_params / max(1, s_params), 2),
+        "teacher_backbone_params": t_backbone,
+        "student_backbone_params": s_backbone,
+        "capacity_ratio": round(t_backbone / max(1, s_backbone), 2),
         "probe_size": len(probe),
         "risk": risk,
         "note": (

@@ -1,8 +1,9 @@
 # D3: scale test on Stanford Online Products (~11k train classes, 120k images).
 # Teacher: same file plus
 #   --set run.tag=d3_teacher --set student.backbone=resnet50 --set distill.alpha=0
-# Note: sce/arcface heads at this class count are large; the recipe uses
-# triplet only, which is standard practice on SOP.
+# Recipe note: sce IS active here (a 22.6k-way cosine classifier, ~11.6M params,
+# trains fine on a 10GB GPU); the published D3 numbers were produced with
+# sce + triplet, so this file states that explicitly.
 run:
   tag: d3_cosine
 
@@ -13,7 +14,9 @@ student: {backbone: resnet18, pretrained: true, embed_dim: 512}
 head:
   pooling: gem
   normalize: true
-  losses: {triplet: 1.0}
+  # sce here has NO label smoothing (faithful to the runs behind the published
+  # numbers, which resolved sce with default parameters).
+  losses: {sce: 1.0, triplet: 1.0}
   triplet: {margin: 0.3, mining: batch_hard}
 
 distill:

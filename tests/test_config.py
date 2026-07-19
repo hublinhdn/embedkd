@@ -62,3 +62,21 @@ def test_rule_cross_domain_needs_target():
 def test_unknown_key_with_suggestion():
     with pytest.raises(ConfigError, match="Did you mean 'epochs'"):
         resolve(overrides=["data.adapter=synthetic", "train.epoch=3"])
+
+
+def test_losses_dict_replaces_defaults_not_merges(tmp_path):
+    # Regression: 'losses: {triplet: 1.0}' must mean EXACTLY that. The old
+    # merge semantics silently kept the default sce, which built a 22.6k-way
+    # classifier in the SOP demo.
+    config = tmp_path / "c.yaml"
+    config.write_text(
+        "data: {adapter: synthetic}\nhead:\n  losses: {triplet: 1.0}\n",
+        encoding="utf-8",
+    )
+    cfg = resolve(config)
+    assert cfg["head"]["losses"] == {"triplet": 1.0}
+    # Same rule for --set overrides.
+    cfg2 = resolve(overrides=["data.adapter=synthetic", "head.losses={contrastive: 1.0}"])
+    assert cfg2["head"]["losses"] == {"contrastive": 1.0}
+    # Other head keys still deep-merge as before.
+    assert cfg["head"]["pooling"] == "gem"

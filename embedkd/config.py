@@ -87,6 +87,26 @@ DEFAULTS: dict[str, Any] = {
 _STRICT_SECTIONS = ("run", "teacher", "student", "data", "train", "eval")
 _EMBEDDING_SPACE_OBJECTIVES = ("cosine", "mse")
 
+# Dict values that REPLACE the default instead of merging into it: a config
+# that writes "losses: {triplet: 1.0}" means exactly that, not "defaults plus
+# triplet". Without this, a default loss can never be removed.
+_REPLACE_PATHS = (("head", "losses"),)
+
+
+def _force_replacements(cfg: dict, source: dict) -> None:
+    for path in _REPLACE_PATHS:
+        node: Any = source
+        for key in path:
+            if not isinstance(node, dict) or key not in node:
+                node = None
+                break
+            node = node[key]
+        if isinstance(node, dict):
+            target = cfg
+            for key in path[:-1]:
+                target = target.setdefault(key, {})
+            target[path[-1]] = copy.deepcopy(node)
+
 
 def deep_update(base: dict, override: dict) -> dict:
     out = copy.deepcopy(base)
@@ -194,6 +214,7 @@ def resolve(config_path: str | Path | None = None, overrides: list[str] | dict |
         if not isinstance(file_cfg, dict):
             raise ConfigError(f"{config_path} must contain a YAML mapping")
         cfg = deep_update(cfg, file_cfg)
+        _force_replacements(cfg, file_cfg)
         if cfg["run"]["tag"] is None:
             cfg["run"]["tag"] = Path(config_path).stem
     if overrides:
@@ -202,9 +223,12 @@ def resolve(config_path: str | Path | None = None, overrides: list[str] | dict |
             for dotted, value in overrides.items():
                 nested = deep_update(nested, parse_set_override(f"{dotted}={yaml.safe_dump(value).strip()}"))
             cfg = deep_update(cfg, nested)
+            _force_replacements(cfg, nested)
         else:
             for expr in overrides:
-                cfg = deep_update(cfg, parse_set_override(expr))
+                nested = parse_set_override(expr)
+                cfg = deep_update(cfg, nested)
+                _force_replacements(cfg, nested)
     if cfg["run"]["tag"] is None:
         cfg["run"]["tag"] = "run"
     validate(cfg)
