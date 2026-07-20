@@ -17,6 +17,17 @@
       "tolerance": 0.005
     }
   },
+  "teacher": {
+    "backbone": "convnext_tiny",
+    "map": {
+      "value": 0.5251,
+      "tolerance": 0.005
+    },
+    "r1": {
+      "value": 0.8846,
+      "tolerance": 0.005
+    }
+  },
   "all_rows": {
     "cosine": {
       "map": {

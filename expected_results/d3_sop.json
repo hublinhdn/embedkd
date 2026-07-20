@@ -13,6 +13,17 @@
       "tolerance": 0.02
     }
   },
+  "teacher": {
+    "backbone": "resnet50",
+    "map": {
+      "value": 0.6126,
+      "tolerance": 0.02
+    },
+    "r1": {
+      "value": 0.7827,
+      "tolerance": 0.02
+    }
+  },
   "all_rows": {
     "cosine": {
       "map": {

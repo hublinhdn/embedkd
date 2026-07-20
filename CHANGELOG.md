@@ -3,6 +3,19 @@
 All notable changes to EmbedKD are documented here. The project follows
 semantic versioning; the config schema is part of the public API.
 
+## 0.1.2 - 2026-07-20
+
+Reproducibility hardening. Same checkpoints and published results as 0.1.0/0.1.1;
+no metric changed.
+
+- Teacher retrieval metrics (map, r1) frozen into `expected_results/*.json`
+  and re-checkable with `scripts/verify_teacher_metrics.py`. Previously the
+  teacher numbers were recorded by hand and unverified; a wrong D2 teacher mAP
+  was caught this way and corrected (0.476 was a stale value; the released
+  checkpoint gives 0.525).
+- REPRODUCE.md documents teacher verification and the `data.root` argument the
+  ePillID (D4) demo needs (its manifest stores paths relative to the images root).
+
 ## 0.1.1 - 2026-07-20
 
 Additive only. Same checkpoints and expected results as 0.1.0; the published

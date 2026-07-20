@@ -39,7 +39,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("demo_ids", nargs="*",
                         help="default: every demo with an expected-results spec")
-    parser.add_argument("--tag", default="v0.1.1")
+    parser.add_argument("--tag", default="v0.1.2")
     parser.add_argument("--teacher", action="store_true",
                         help="also fetch the matching teacher checkpoint into runs/<demo>_teacher/")
     args = parser.parse_args()

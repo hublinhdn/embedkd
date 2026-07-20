@@ -5,7 +5,7 @@ tolerance-checked expected value in `expected_results/`. The
 `embedkd reproduce` command re-runs a demo and grades itself
 (exit code 2 on mismatch).
 
-## Published results (v0.1.1)
+## Published results (v0.1.2)
 
 Retrieval mAP, open-set gallery-query protocol, seed 42; tolerances are
 2x the standard deviation over seeds {42, 43, 44} where replicates exist
@@ -16,7 +16,7 @@ Retrieval mAP, open-set gallery-query protocol, seed 42; tolerances are
 | d1_cub200 | CUB-200-2011 | ResNet50 -> ResNet18 | 0.3394 | 0.2844 | 0.2882 +/- 0.005 | +0.004 |
 | d3_sop | Stanford Online Products | ResNet50 -> ResNet18 | 0.6126 | 0.5296 | 0.5484 +/- 0.02 | +0.019 |
 | d4_epillid | ePillID (case study) | ResNet50 -> ResNet18 | 0.5687 | 0.4530 | 0.4876 +/- 0.02 | +0.035 |
-| d2_cars196 | Cars196 (cross-family) | ConvNeXt-T -> MobileNetV3 | 0.4762 | 0.2289 | 0.2797 +/- 0.005 | +0.051 |
+| d2_cars196 | Cars196 (cross-family) | ConvNeXt-T -> MobileNetV3 | 0.5251 | 0.2289 | 0.2797 +/- 0.005 | +0.051 |
 
 The gain is monotone in the teacher-student performance gap; the
 pre-training compatibility reports for all four pairs are produced by
@@ -52,9 +52,24 @@ teacher checkpoints can be fetched with
 `python scripts/fetch_release_checkpoints.py <demo> --teacher` to skip that
 step.
 
+## Verifying the teacher metrics
+
+The Teacher column above is re-checkable against the released checkpoints
+(the values are frozen in the `teacher` block of each `expected_results/*.json`):
+
+```bash
+python scripts/verify_teacher_metrics.py                 # D1, D2, D3
+python scripts/verify_teacher_metrics.py d4_epillid \
+    --set data.root=<ePillID classification_data dir>    # D4 needs the images root
+```
+
+D4 (ePillID) uses the `csv_manifest` adapter whose manifest stores image paths
+relative to the images root, so every D4 command (`reproduce`, `verify`, `eval`,
+`fit`) needs `--set data.root=<dir containing fcn_mix_weight/>`.
+
 ## Determinism contract
 
-1. Same machine, same seed: bit-exact metrics (verified: the v0.1.1
+1. Same machine, same seed: bit-exact metrics (verified: the v0.1.2
    `reproduce --eval-only` run matched the published D1 numbers to 7 decimal
    places on the reference machine).
 2. Different GPU or driver: expect deviations within the published
