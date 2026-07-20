@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "EmbedKD: a reproducibility-first toolkit for knowledge distillation of metric embeddings"
+version: 0.1.1
+doi: 10.5281/zenodo.21458183
+date-released: 2026-07-20
+license: MIT
+repository-code: "https://github.com/hublinhdn/embedkd"
+authors:
+  - given-names: "Nhat Linh"
+    family-names: "Do"
+  - given-names: "Dzi Lam"
+    family-names: "Tran Tuan"
+  - given-names: "Vinh"
+    family-names: "Truong Hoang"
