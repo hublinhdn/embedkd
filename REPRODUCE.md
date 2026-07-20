@@ -5,7 +5,7 @@ tolerance-checked expected value in `expected_results/`. The
 `embedkd reproduce` command re-runs a demo and grades itself
 (exit code 2 on mismatch).
 
-## Published results (v0.1.0)
+## Published results (v0.1.1)
 
 Retrieval mAP, open-set gallery-query protocol, seed 42; tolerances are
 2x the standard deviation over seeds {42, 43, 44} where replicates exist
@@ -54,7 +54,7 @@ step.
 
 ## Determinism contract
 
-1. Same machine, same seed: bit-exact metrics (verified: the v0.1.0
+1. Same machine, same seed: bit-exact metrics (verified: the v0.1.1
    `reproduce --eval-only` run matched the published D1 numbers to 7 decimal
    places on the reference machine).
 2. Different GPU or driver: expect deviations within the published

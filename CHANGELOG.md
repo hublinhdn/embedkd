@@ -3,9 +3,10 @@
 All notable changes to EmbedKD are documented here. The project follows
 semantic versioning; the config schema is part of the public API.
 
-## Unreleased
+## 0.1.1 - 2026-07-20
 
-Additive only; published v0.1.0 numbers are unaffected.
+Additive only. Same checkpoints and expected results as 0.1.0; the published
+D1-D5 numbers are unaffected and `reproduce` still passes.
 
 - Per-component loss values logged each epoch (`task_sce`, `distill_rkd`,
   ...) alongside the aggregate task/distill losses.
@@ -13,6 +14,8 @@ Additive only; published v0.1.0 numbers are unaffected.
   test suite.
 - Configuration reference synced with the full current schema
   (lr_backbone, grad_clip, relational_ramp, logit_scale, output_stride).
+- `scripts/make_qualitative_figure.py`: qualitative retrieval figure
+  (query vs top-k neighbours, before/after distillation).
 
 ## 0.1.0 - 2026-07-19
 
