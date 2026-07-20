@@ -3,6 +3,12 @@
 All notable changes to EmbedKD are documented here. The project follows
 semantic versioning; the config schema is part of the public API.
 
+## Unreleased
+
+- `verify_teacher_metrics.py` skips a demo cleanly (with a one-line hint)
+  when its images root is not provided, instead of crashing deep in the
+  DataLoader; run `... d4_epillid --set data.root=<images root>` for ePillID.
+
 ## 0.1.2 - 2026-07-20
 
 Reproducibility hardening. Same checkpoints and published results as 0.1.0/0.1.1;

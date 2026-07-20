@@ -56,6 +56,7 @@ def main() -> int:
 
     demos = args.demo_ids or sorted(p.stem for p in EXPECTED.glob("*.json"))
     failures: list[str] = []
+    skipped: list[str] = []
     checked = 0
     for demo in demos:
         spec_path = EXPECTED / f"{demo}.json"
@@ -67,7 +68,6 @@ def main() -> int:
         teacher = spec.get("teacher")
         if not teacher:
             continue  # demo has no teacher block to verify
-        checked += 1
 
         ckpt = REPO / "runs" / f"{demo}_teacher" / "best.pth"
         if not ckpt.exists():
@@ -87,12 +87,32 @@ def main() -> int:
             "eval.report_retention=false",
         ]
         run = DistillationRun.from_config(spec["config"], overrides)
+
+        # Some demos (e.g. ePillID/D4 via csv_manifest) store image paths
+        # relative to an images root the user must supply. Without it the loader
+        # would fail deep inside the DataLoader; detect it here and skip cleanly
+        # instead of crashing, telling the user exactly how to run it.
+        if not run.cfg["data"].get("root"):
+            print(f"[{demo}] SKIPPED: needs an images root. Re-run:\n"
+                  f"    python scripts/verify_teacher_metrics.py {demo} "
+                  f"--set data.root=<dir containing the images>")
+            skipped.append(demo)
+            continue
+
+        checked += 1
         state = torch.load(ckpt, map_location="cpu", weights_only=True)
         run.student.load_state_dict(state["state_dict"])
-        m = evaluate_model(
-            run.student.to(run.device), run.bundle.gallery, run.bundle.query,
-            batch_size=run.cfg["eval"]["batch_size"], device=run.device,
-        )
+        try:
+            m = evaluate_model(
+                run.student.to(run.device), run.bundle.gallery, run.bundle.query,
+                batch_size=run.cfg["eval"]["batch_size"], device=run.device,
+            )
+        except FileNotFoundError as exc:
+            print(f"[{demo}] SKIPPED: image not found ({exc.filename}); check "
+                  f"--set data.root=<...> points at the images root.")
+            skipped.append(demo)
+            checked -= 1
+            continue
         print(f"[{demo}] teacher ({teacher['backbone']}):")
         for name in ("map", "r1"):
             exp = teacher[name]
@@ -105,13 +125,16 @@ def main() -> int:
             if not ok:
                 failures.append(f"{demo}.{name}")
 
-    if not checked:
-        print("No demos with a teacher block found.", file=sys.stderr)
-        return 1
+    if skipped:
+        print(f"\nSkipped (need --set data.root=<images root>): {skipped}")
     if failures:
-        print("\nFAIL:", failures, file=sys.stderr)
+        print("FAIL:", failures, file=sys.stderr)
         return 2
-    print("\nAll teacher metrics verified against the released checkpoints.")
+    if not checked:
+        print("Nothing verified: every requested demo was skipped or had no teacher block.",
+              file=sys.stderr)
+        return 1
+    print(f"All {checked} teacher metric set(s) verified against the released checkpoints.")
     return 0
 
 
