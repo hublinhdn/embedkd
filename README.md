@@ -1,6 +1,6 @@
 # EmbedKD
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21459157.svg)](https://doi.org/10.5281/zenodo.21459157)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21485564.svg)](https://doi.org/10.5281/zenodo.21485564)
 
 EmbedKD is a reproducibility-first toolkit for distilling metric embeddings:
 it tells you whether a teacher-student pair is worth distilling, distills it,
