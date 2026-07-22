@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata below."
 title: "EmbedKD: a reproducibility-first toolkit for knowledge distillation of metric embeddings"
-version: 0.1.2
+version: 0.1.3
 doi: 10.5281/zenodo.21459157
 date-released: 2026-07-20
 license: MIT

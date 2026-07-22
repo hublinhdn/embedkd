@@ -5,7 +5,7 @@ Thanks for your interest. A few ground rules keep the toolkit reliable.
 ## Development setup
 
 ```bash
-git clone https://github.com/embedkd/embedkd && cd embedkd
+git clone https://github.com/hublinhdn/embedkd && cd embedkd
 pip install -e ".[dev]"
 pytest -q          # the whole suite runs on CPU in seconds
 ruff check .

@@ -96,6 +96,13 @@ def main() -> None:
     }
     out = REPO / "expected_results" / f"{args.demo_id}.json"
     out.parent.mkdir(exist_ok=True)
+    # The teacher block is frozen from the released checkpoints (re-verified by
+    # scripts/verify_teacher_metrics.py), not regenerated here; carry it over so
+    # regenerating the student rows never silently drops it.
+    if out.exists():
+        prev = json.loads(out.read_text(encoding="utf-8"))
+        if "teacher" in prev:
+            spec["teacher"] = prev["teacher"]
     out.write_text(json.dumps(spec, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {out}")
     for label, metrics in rows.items():

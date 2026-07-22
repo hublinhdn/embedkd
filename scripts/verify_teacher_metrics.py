@@ -86,7 +86,13 @@ def main() -> int:
             "distill.alpha=0",
             "eval.report_retention=false",
         ]
-        run = DistillationRun.from_config(spec["config"], overrides)
+        try:
+            run = DistillationRun.from_config(spec["config"], overrides)
+        except FileNotFoundError as exc:
+            print(f"[{demo}] SKIPPED: dataset or manifest not found ({exc}); "
+                  f"prepare it (and pass --set data.root=<images root> for csv_manifest demos).")
+            skipped.append(demo)
+            continue
 
         # Some demos (e.g. ePillID/D4 via csv_manifest) store image paths
         # relative to an images root the user must supply. Without it the loader

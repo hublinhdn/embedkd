@@ -3,11 +3,23 @@
 All notable changes to EmbedKD are documented here. The project follows
 semantic versioning; the config schema is part of the public API.
 
-## Unreleased
+## 0.1.3 - 2026-07-20
 
-- `verify_teacher_metrics.py` skips a demo cleanly (with a one-line hint)
-  when its images root is not provided, instead of crashing deep in the
-  DataLoader; run `... d4_epillid --set data.root=<images root>` for ePillID.
+Metadata and hygiene fixes surfaced by an independent review; no published
+metric changed.
+
+- Package version matches the release again (pyproject and `__init__` were
+  stuck at 0.1.0 while everything else said 0.1.2).
+- Repository and homepage URLs corrected to `github.com/hublinhdn/embedkd`
+  (previously pointed at a non-existent org); removed a dead documentation URL.
+- README quickstart is clone-first: `configs/` ship with the repo, not the wheel.
+- `verify_teacher_metrics.py` skips a demo cleanly (missing dataset, manifest,
+  or images root) instead of crashing; run `... d4_epillid --set data.root=...`
+  for ePillID.
+- `make_expected_results.py` preserves the frozen teacher block on regeneration;
+  REPRODUCE.md and expected_results/README.md corrected to state that student
+  rows are machine-generated while teacher metrics are frozen from the released
+  checkpoints and re-verified by `verify_teacher_metrics.py`.
 
 ## 0.1.2 - 2026-07-20
 

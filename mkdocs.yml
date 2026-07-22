@@ -1,6 +1,6 @@
 site_name: EmbedKD
 site_description: Reproducibility-first toolkit for distilling metric embeddings
-repo_url: https://github.com/embedkd/embedkd
+repo_url: https://github.com/hublinhdn/embedkd
 theme:
   name: material
   palette:

@@ -6,7 +6,7 @@ EmbedKD is a reproducibility-first toolkit for distilling metric embeddings:
 it tells you whether a teacher-student pair is worth distilling, distills it,
 evaluates it with retrieval protocols, and benchmarks the deployed result.
 
-> Status: v0.1.2 released, archived at [doi:10.5281/zenodo.21459157](https://doi.org/10.5281/zenodo.21459157).
+> Status: v0.1.3 released, archived on Zenodo (see the DOI badge above).
 
 ## Why EmbedKD
 
@@ -29,7 +29,8 @@ framework, or a distributed-training system. v0.1 is single-GPU, images only.
 ## Quickstart (CPU, no downloads, ~3 minutes)
 
 ```bash
-pip install embedkd
+git clone https://github.com/hublinhdn/embedkd && cd embedkd
+pip install -e .                                   # configs/ ship with the repo, not the wheel
 embedkd fit --config configs/quickstart_cpu.yaml
 embedkd diagnose --config configs/quickstart_cpu.yaml
 ```

@@ -80,5 +80,7 @@ relative to the images root, so every D4 command (`reproduce`, `verify`, `eval`,
 ## How the numbers are generated
 
 `scripts/make_expected_results.py` reads the best evaluated epoch from each
-run's `log.jsonl` and writes `expected_results/<demo>.json`. No number is
-typed by hand.
+run's `log.jsonl` and writes the student rows of `expected_results/<demo>.json`.
+The teacher metrics in each spec are frozen from the released checkpoints and
+re-verified by `scripts/verify_teacher_metrics.py`; the generator preserves
+that block on regeneration.
