@@ -26,6 +26,8 @@ BASELINES = {
     "runs/20260717_170709_d1_kl_s42": "D1 kl (published)",
     "runs/20260717_172344_d1_rkd_s42": "D1 rkd (published)",
     "runs/20260717_163324_d1_teacher_resnet50": "D1 teacher (published)",
+    "runs/20260717_174346_d1_cosine_s43": "D1 cosine s43 (published)",
+    "runs/20260717_180255_d1_cosine_s44": "D1 cosine s44 (published)",
 }
 
 
