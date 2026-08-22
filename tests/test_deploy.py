@@ -44,6 +44,8 @@ def test_parity_report_measures_error_not_only_cosine(tmp_path):
     # reported and both must be small for an export we would ship.
     assert report["max_abs_error"] < 1e-3
     assert report["max_rel_error"] < 1e-2
+    # Normalised by the vector norm, which is the error a cosine ranking sees.
+    assert report["max_rel_error_norm"] < 1e-4
     assert report["probe_source"] == "gaussian"
     assert report["n_probes"] == 4
 

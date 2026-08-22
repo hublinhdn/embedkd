@@ -127,9 +127,15 @@ def parity_report(model: torch.nn.Module, onnx_path: str | Path,
     """Element-wise agreement between the torch model and the exported graph.
 
     Pass real images as `probes`; the Gaussian fallback exists only so the
-    function still runs where no dataset is available. Relative error is
-    |ref - out| / (|ref| + eps) taken element-wise, so it reports the worst
-    single coordinate rather than an average that hides one bad channel.
+    function still runs where no dataset is available.
+
+    Two relative errors are reported because the element-wise one is easy to
+    misread. `max_rel_error` divides by the magnitude of each coordinate, so a
+    coordinate that is near zero inflates it even when the absolute error is
+    at float32 resolution; it is the strict reading of the quantity but it says
+    more about the embedding than about the export. `max_rel_error_norm`
+    divides the largest absolute error by the norm of the reference vector,
+    which is the error a cosine ranking actually sees.
     """
     ort = _require_onnxruntime()
     session = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
@@ -155,6 +161,9 @@ def parity_report(model: torch.nn.Module, onnx_path: str | Path,
         "min_cosine": round(float(cos.min()), 8),
         "max_abs_error": float(diff.max()),
         "max_rel_error": float((diff / (ref.abs() + eps)).max()),
+        "max_rel_error_norm": float(
+            (diff.max(dim=-1).values / (ref.norm(dim=-1) + eps)).max()
+        ),
         "mean_abs_error": float(diff.mean()),
         "threshold": threshold,
     }
