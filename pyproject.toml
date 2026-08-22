@@ -32,7 +32,7 @@ plots = ["matplotlib>=3.7"]
 docs = ["mkdocs-material>=9.5"]
 dev = [
     "pytest>=8.0",
-    "ruff>=0.4",
+    "ruff>=0.16.4,<0.17",   # bounded: ruff changes its default rule set between minors
     "onnx>=1.15",
     "onnxruntime>=1.17",
 ]
@@ -50,6 +50,13 @@ include = ["embedkd*"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+# Declared explicitly rather than left to the default set. The default set
+# is not a stable contract: ruff 0.16 widened it, which turned a green CI
+# into thirty three failures on code that had not changed. What CI enforces
+# now moves only when this list moves.
+select = ["E4", "E7", "E9", "F"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
