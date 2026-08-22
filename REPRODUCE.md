@@ -5,7 +5,7 @@ tolerance-checked expected value in `expected_results/`. The
 `embedkd reproduce` command re-runs a demo and grades itself
 (exit code 2 on mismatch).
 
-## Published results (v0.1.2)
+## Published results
 
 Retrieval mAP, open-set gallery-query protocol, seed 42; tolerances are
 2x the standard deviation over seeds {42, 43, 44} where replicates exist
@@ -69,13 +69,43 @@ relative to the images root, so every D4 command (`reproduce`, `verify`, `eval`,
 
 ## Determinism contract
 
-1. Same machine, same seed: bit-exact metrics (verified: the v0.1.2
-   `reproduce --eval-only` run matched the published D1 numbers to 7 decimal
-   places on the reference machine).
-2. Different GPU or driver: expect deviations within the published
+1. Same machine, same seed, evaluation only: bit-exact metrics. `reproduce
+   --eval-only` reloads the released checkpoint and reproduces the published
+   D1 numbers to seven decimal places in about 23 seconds. This exercises the
+   evaluator and the checkpoint loader; it says nothing about training.
+2. Same machine, same seed, full training: also bit-exact. `reproduce
+   d1_cub200` without `--eval-only` retrains the demo for 60 epochs, about 20
+   minutes on the reference machine, and returns
+   `map 0.28823891282081604` and `r1 0.5169376730918884`, identical in every
+   digit to the originally published run rather than merely inside tolerance.
+3. Different GPU or driver: expect deviations within the published
    tolerances.
-3. Every run writes `fingerprint.yaml` (resolved config, seed, library
+4. Every run writes `fingerprint.yaml` (resolved config, seed, library
    versions, git commit, hardware); attach it when reporting discrepancies.
+   See `docs/reference-environment.md` for the machine that produced the
+   published numbers and `requirements.lock` for its exact package set.
+
+## Version history of the published numbers
+
+The results in this document were produced while the package version string
+was `0.1.0.dev0`, which is what every `fingerprint.yaml` of those runs records.
+Releases v0.1.1 through v0.1.3 changed metadata, documentation and verification
+tooling only; no released version changed a published number. The fingerprints
+were left as they were written, because editing them after the fact would
+misrepresent the runs.
+
+The repository history was squashed into a single commit shortly before the
+first release, so the commit hashes named in those fingerprints are not part of
+the `main` history. The original chain is published unchanged as the branch
+`archive/pre-squash-history`, and every commit named in a fingerprint resolves
+there.
+
+| Run | Fingerprint commit | Where it resolves |
+|---|---|---|
+| d1 teacher, d1 cosine s42 | `b0b4a56` | `archive/pre-squash-history` |
+| d1 no-KD baseline | `57991e9` | `archive/pre-squash-history` |
+| d2 cosine s42, d2 no-KD | `55e8e74` | `archive/pre-squash-history` |
+| d3 cosine s42, d4 cosine s42 | `a130c29` | `main` |
 
 ## How the numbers are generated
 

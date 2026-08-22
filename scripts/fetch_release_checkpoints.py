@@ -13,6 +13,7 @@ the teacher). Placement comes from expected_results/<demo_id>.json.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import urllib.request
@@ -33,6 +34,29 @@ def fetch(url: str, dest: Path) -> None:
         urllib.request.urlretrieve(url, dest, reporthook=report)
     finally:
         sys.stderr.write("\n")
+
+
+def sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def check(path: Path, expected: str | None, label: str) -> None:
+    """A download nobody verified is not a reproduction. Fail loudly instead."""
+    if not expected:
+        print(f"{label}: no checksum recorded for this release, skipping verification")
+        return
+    got = sha256(path)
+    if got != expected:
+        raise SystemExit(
+            f"{label}: checksum mismatch for {path}\n"
+            f"  expected {expected}\n  got      {got}\n"
+            "Delete the file and download it again; do not reproduce from it."
+        )
+    print(f"{label}: checksum verified")
 
 
 def main() -> None:
@@ -58,12 +82,15 @@ def main() -> None:
             fetch(RELEASE_URL.format(tag=args.tag, asset=f"{demo_id}_student_best.pth"),
                   student_dest)
             print(f"{demo_id}: -> {spec['checkpoint']}")
+        check(student_dest, spec.get("checkpoint_sha256"), f"{demo_id} student")
+
         if args.teacher:
             teacher_dest = REPO / "runs" / f"{demo_id}_teacher" / "best.pth"
             if not teacher_dest.exists():
                 fetch(RELEASE_URL.format(tag=args.tag, asset=f"{demo_id}_teacher_best.pth"),
                       teacher_dest)
                 print(f"{demo_id}: teacher -> {teacher_dest.relative_to(REPO)}")
+            check(teacher_dest, spec.get("teacher", {}).get("sha256"), f"{demo_id} teacher")
 
 
 if __name__ == "__main__":

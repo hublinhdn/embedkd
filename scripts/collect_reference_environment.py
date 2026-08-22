@@ -114,12 +114,39 @@ def checksums() -> list[tuple[str, str, int]]:
     return rows
 
 
+def update_specs(digests: dict[str, str]) -> list[str]:
+    """Record the measured checksums next to the paths each demo already names."""
+    touched = []
+    for spec_path in sorted(Path("expected_results").glob("d*.json")):
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+        changed = False
+
+        student = spec.get("checkpoint")
+        if student in digests and spec.get("checkpoint_sha256") != digests[student]:
+            spec["checkpoint_sha256"] = digests[student]
+            changed = True
+
+        teacher_path = f"runs/{spec['demo_id']}_teacher/best.pth"
+        if teacher_path in digests and "teacher" in spec:
+            if spec["teacher"].get("sha256") != digests[teacher_path]:
+                spec["teacher"]["checkpoint"] = teacher_path
+                spec["teacher"]["sha256"] = digests[teacher_path]
+                changed = True
+
+        if changed:
+            spec_path.write_text(json.dumps(spec, indent=2) + "\n", encoding="utf-8")
+            touched.append(spec_path.name)
+    return touched
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out-lock", default="requirements.lock")
     parser.add_argument("--out-doc", default="docs/reference-environment.md")
     parser.add_argument("--torch-index", default="https://download.pytorch.org/whl/cu130",
                         help="index the CUDA build of torch was installed from")
+    parser.add_argument("--update-specs", action="store_true",
+                        help="write the measured checksums into expected_results/*.json")
     args = parser.parse_args()
 
     t = torch_info()
@@ -217,8 +244,12 @@ def main() -> None:
     Path(args.out_doc).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out_doc).write_text("\n".join(doc) + "\n", encoding="utf-8")
 
+    updated = update_specs(dict((rel, digest) for rel, digest, _ in rows)) \
+        if args.update_specs else []
+
     print(json.dumps({"lock": args.out_lock, "doc": args.out_doc,
-                      "packages": len(pkgs), "checkpoints": len(rows)}, indent=2))
+                      "packages": len(pkgs), "checkpoints": len(rows),
+                      "specs_updated": updated}, indent=2))
 
 
 if __name__ == "__main__":

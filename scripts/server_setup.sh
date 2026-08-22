@@ -18,9 +18,16 @@ python -m pip install --upgrade pip -q
 
 echo "== Installing torch (CUDA) and embedkd =="
 # torch and torchvision from the SAME index (timm depends on torchvision;
-# mixing indexes causes "operator torchvision::nms does not exist").
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 -q
+# mixing indexes causes "operator torchvision::nms does not exist"). The index
+# and the versions are those of the reference machine, recorded in
+# docs/reference-environment.md; the CUDA build tag is not served by PyPI.
+pip install torch==2.13.0 torchvision==0.28.0 \
+    --index-url https://download.pytorch.org/whl/cu130 -q
 pip install -e ".[dev,onnx,plots]" -q
+
+# Reproducing published numbers rather than developing? Pin everything else to
+# the reference set as well:
+#   pip install -r requirements.lock
 
 echo "== Environment sanity: test suite (CPU, ~10s) =="
 pytest -q
