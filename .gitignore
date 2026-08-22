@@ -16,6 +16,10 @@ examples/epillid/manifest.csv
 /data/
 /logs/
 /figures/
+# Belt and braces: generated figures written to the repo root by an older
+# invocation of scripts/make_*.py. The paper keeps its own copies.
+/fig_*.pdf
+/fig_*.png
 sop_download.log
 *.pth
 *.onnx

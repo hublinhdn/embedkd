@@ -10,7 +10,7 @@ Typical use, comparing the no-KD baseline against the distilled student:
         --config configs/d2_cars196_cosine.yaml \\
         --checkpoint "no KD=runs/<id_nokd>/best.pth" \\
         --checkpoint "distilled=runs/<id_cosine>/best.pth" \\
-        --out fig_qualitative.pdf
+        --out figures/fig_qualitative.pdf
 
 Both checkpoints must share the student architecture of --config. Query
 selection is deterministic given --seed. --select improved (default) picks,
@@ -55,7 +55,7 @@ def parse_args():
     p.add_argument("--checkpoint", action="append", required=True,
                    metavar="NAME=PATH",
                    help="repeatable; row order in the figure follows CLI order")
-    p.add_argument("--out", default="fig_qualitative.pdf")
+    p.add_argument("--out", default="figures/fig_qualitative.pdf")
     p.add_argument("--num-queries", type=int, default=3)
     p.add_argument("--topk", type=int, default=5)
     p.add_argument("--select", choices=["improved", "happy", "random", "first"],
