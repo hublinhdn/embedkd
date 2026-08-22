@@ -13,7 +13,10 @@ Typical use, comparing the no-KD baseline against the distilled student:
         --out figures/fig_qualitative.pdf
 
 Both checkpoints must share the student architecture of --config. Query
-selection is deterministic given --seed. --select improved (default) picks,
+selection is deterministic given --seed. --select balanced (default) alternates
+between queries the distilled model fixes and queries it breaks, because a
+figure drawn only from corrected cases is not a picture of what distillation
+did; both counts are printed for the caption. --select improved picks,
 in shuffled order, queries where the LAST named checkpoint ranks a correct
 image first and the FIRST named one does not. --select happy draws from the
 same improved pool but orders it to show the cleanest, most eye-catching
@@ -58,8 +61,9 @@ def parse_args():
     p.add_argument("--out", default="figures/fig_qualitative.pdf")
     p.add_argument("--num-queries", type=int, default=3)
     p.add_argument("--topk", type=int, default=5)
-    p.add_argument("--select", choices=["improved", "happy", "random", "first"],
-                   default="improved")
+    p.add_argument("--select",
+                   choices=["improved", "degraded", "balanced", "happy", "random", "first"],
+                   default="balanced")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--batch-size", type=int, default=256)
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -133,17 +137,37 @@ def main() -> int:
         print(f"top-1 correct with '{name}': {int(c.sum())}/{n_q} ({c.float().mean():.1%})")
 
     rng = random.Random(args.seed)
-    if args.select in ("improved", "happy") and len(orders) >= 2:
-        eligible = torch.nonzero(~correct1[0] & correct1[-1]).flatten().tolist()
+    fixed, broken = [], []
+    if len(orders) >= 2:
+        fixed = torch.nonzero(~correct1[0] & correct1[-1]).flatten().tolist()
+        broken = torch.nonzero(correct1[0] & ~correct1[-1]).flatten().tolist()
+        # Both counts are printed unconditionally. A figure drawn only from the
+        # queries distillation fixes is not a picture of what distillation did.
         print(f"queries where '{names[-1]}' fixes the top-1 of '{names[0]}': "
-              f"{len(eligible)}/{n_q}")
+              f"{len(fixed)}/{n_q}")
+        print(f"queries where '{names[-1]}' breaks the top-1 of '{names[0]}': "
+              f"{len(broken)}/{n_q}")
+        print(f"net change: {len(fixed) - len(broken):+d}")
+
+    if args.select in ("improved", "happy") and len(orders) >= 2:
+        eligible = list(fixed)
+    elif args.select == "degraded" and len(orders) >= 2:
+        eligible = list(broken)
+    elif args.select == "balanced" and len(orders) >= 2:
+        # Alternate the two pools so a figure of any length shows both
+        # directions, starting with a corrected case.
+        a, b = list(fixed), list(broken)
+        rng.shuffle(a)
+        rng.shuffle(b)
+        eligible = [i for pair in zip(a, b) for i in pair]
+        eligible += a[len(b):] + b[len(a):]
     else:
         eligible = list(range(n_q))
     if args.select == "happy" and len(orders) >= 2:
         # Cleanest distilled row first, then widest before/after gap. Deterministic.
         eligible.sort(key=lambda i: (int(topk_hits[-1][i]), -int(topk_hits[0][i])),
                       reverse=True)
-    elif args.select != "first":
+    elif args.select not in ("first", "balanced"):
         rng.shuffle(eligible)
 
     # Prefer class-diverse queries so the figure is not three birds of a
@@ -233,6 +257,9 @@ def main() -> int:
     fig.savefig(args.out, bbox_inches="tight")
     print(f"wrote {args.out}  ({args.num_queries} queries x "
           f"{len(names)} models x top-{args.topk}, select={args.select}, seed={args.seed})")
+    if len(orders) >= 2:
+        print(f"caption facts: {len(fixed)} of {n_q} top-1 results corrected, "
+              f"{len(broken)} degraded, net {len(fixed) - len(broken):+d}")
     return 0
 
 
