@@ -22,7 +22,9 @@
     "r1": {
       "value": 0.7827,
       "tolerance": 0.02
-    }
+    },
+    "checkpoint": "runs/d3_sop_teacher/best.pth",
+    "sha256": "72402d952578717742780b4b4aad5b02a4da4b0a980de5127a97337aa4e053b9"
   },
   "all_rows": {
     "cosine": {
@@ -45,5 +47,6 @@
         "tolerance": 0.02
       }
     }
-  }
+  },
+  "checkpoint_sha256": "b36268b0459164131023dde078f590c841ecceecef10a0552bb7386c929ccefc"
 }

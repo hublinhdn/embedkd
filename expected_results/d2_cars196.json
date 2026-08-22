@@ -26,7 +26,9 @@
     "r1": {
       "value": 0.8846,
       "tolerance": 0.005
-    }
+    },
+    "checkpoint": "runs/d2_cars196_teacher/best.pth",
+    "sha256": "d6e64dc62d05753de9086868c7852962e566a1d8a671626774d452956dfefbd4"
   },
   "all_rows": {
     "cosine": {
@@ -49,5 +51,6 @@
         "tolerance": 0.005
       }
     }
-  }
+  },
+  "checkpoint_sha256": "23e286268c1f1fe1d88a7e1d362eeaad2a571571bdd8330c8891177e9e42f811"
 }

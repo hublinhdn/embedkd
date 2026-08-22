@@ -22,7 +22,9 @@
     "r1": {
       "value": 0.5853,
       "tolerance": 0.02
-    }
+    },
+    "checkpoint": "runs/d4_epillid_teacher/best.pth",
+    "sha256": "9214c2811226c463bdfab792d4b6012d893842cb371a2dcd800d99608c20a115"
   },
   "all_rows": {
     "cosine": {
@@ -45,5 +47,6 @@
         "tolerance": 0.02
       }
     }
-  }
+  },
+  "checkpoint_sha256": "913cb5dfd01959e0e9000bafb723625411e1cff0c5a82686afb6fb6a98ca2edf"
 }
