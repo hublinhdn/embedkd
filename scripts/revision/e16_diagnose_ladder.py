@@ -30,7 +30,9 @@ LADDER = [
      "student_glob": "runs/*_e6_student_from_e15"},
     {"name": "teacher_30_epochs", "teacher_glob": "runs/*_e6_teacher_e30",
      "student_glob": "runs/*_e6_student_from_e30"},
-    {"name": "teacher_60_epochs_published", "teacher_glob": "runs/d1_cub200_teacher",
+    # The published teacher, taken from its original run directory rather than
+    # the runs/d1_cub200_teacher copy, which holds only best.pth and no log.
+    {"name": "teacher_60_epochs_published", "teacher_glob": "runs/*_d1_teacher_resnet50",
      "student_glob": "runs/20260717_164702_d1_cosine_s42"},
 ]
 
