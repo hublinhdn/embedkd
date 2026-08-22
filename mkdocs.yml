@@ -22,6 +22,7 @@ nav:
       - Choosing a teacher-student pair: guides/choosing-a-pair.md
       - Deployment: guides/deploy.md
       - Reproduce the paper: guides/reproduce.md
+      - Reference environment: reference-environment.md
   - Extend:
       - Custom distillation objective: extend/custom-objective.md
       - Custom task loss: extend/custom-task-loss.md
