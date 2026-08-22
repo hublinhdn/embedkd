@@ -73,15 +73,21 @@ def main() -> None:
         ])
         probe = run.bundle.target_query
         batch_size = run.cfg["eval"]["batch_size"]
+        # compatibility_report feeds batches straight to the models, so both
+        # have to sit on the device already; DistillationRun.diagnose does the
+        # same move before calling it.
+        teacher = run.teacher.to(run.device)
+        student = run.student.to(run.device)
 
         # Fresh student: what the tool could report before any training.
-        pre = compatibility_report(run.teacher, run.student, probe,
+        pre = compatibility_report(teacher, student, probe,
                                    batch_size=batch_size, device=run.device)
 
         # Distilled student: how close it ended up to the teacher.
         state = torch.load(case["distilled"], map_location="cpu", weights_only=True)
-        run.student.load_state_dict(state["state_dict"])
-        post = compatibility_report(run.teacher, run.student, probe,
+        student.load_state_dict(state["state_dict"])
+        student = student.to(run.device)
+        post = compatibility_report(teacher, student, probe,
                                     batch_size=batch_size, device=run.device)
 
         before = json.loads((results_dir / case["before_json"]).read_text(encoding="utf-8"))
