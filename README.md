@@ -1,12 +1,13 @@
 # EmbedKD
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21485564.svg)](https://doi.org/10.5281/zenodo.21485564)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21458182.svg)](https://doi.org/10.5281/zenodo.21458182)
 
 EmbedKD is a reproducibility-first toolkit for distilling metric embeddings:
 it tells you whether a teacher-student pair is worth distilling, distills it,
 evaluates it with retrieval protocols, and benchmarks the deployed result.
 
-> Status: v0.1.3 released, archived on Zenodo (see the DOI badge above).
+> Status: v0.1.4 released, archived on Zenodo (see the DOI badge above; it is
+> the concept DOI and always resolves to the newest version).
 
 ## Why EmbedKD
 

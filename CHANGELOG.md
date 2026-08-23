@@ -3,6 +3,55 @@
 All notable changes to EmbedKD are documented here. The project follows
 semantic versioning; the config schema is part of the public API.
 
+## 0.1.4 - 2026-08-23
+
+Revision round for the SoftwareX submission. No published metric changed; the
+numbers of 0.1.3 reproduce bit-exactly, now verified by retraining rather than
+by reloading a checkpoint.
+
+Verification
+- `parity_report` draws probes from real images, and reports maximum absolute
+  and relative error next to the cosine agreement. The element-wise relative
+  error is reported alongside one normalised by the vector norm, because the
+  former is inflated by coordinates near zero.
+- `retrieval_parity` recomputes mAP and Recall@k through the exported graph
+  using the same evaluator, so a ranking change fails the check even when the
+  embeddings agree closely.
+- `export_onnx(dynamic_spatial=True)` frees the height and width axes. Off by
+  default: accepting an input shape and being correct at it are separate
+  properties. Verified at 160, 224 and 288 on all five validated backbones.
+- `fetch_release_checkpoints.py` verifies the SHA-256 of what it downloads and
+  refuses to continue on a mismatch.
+
+Reproducibility record
+- `requirements.lock` and `docs/reference-environment.md` are generated on the
+  machine that produced the published results: operating system, kernel, GPU,
+  driver, CUDA, cuDNN, all installed packages, checkpoint checksums, and which
+  optional dependency each test file needs. Regenerating reproduces them byte
+  for byte.
+- Checkpoint checksums added to `expected_results/*.json`. Additive only.
+- `server_setup.sh` installed torch from the cu121 index while the reference
+  machine runs a cu130 build, so it never reproduced that environment. Fixed
+  and pinned.
+- `REPRODUCE.md` separates the evaluation level of reproduction from the
+  training level, and maps each published run to the commit its fingerprint
+  names. Those commits predate a pre-release history squash and are now
+  published as the `archive/pre-squash-history` branch.
+- CITATION.cff and the README badge use the Zenodo concept DOI, which always
+  resolves to the newest version, instead of a per-version DOI that goes stale.
+
+Tooling
+- The dev extra bounds ruff to the 0.16 line and the lint rule set is declared
+  in `pyproject.toml`. CI had been failing on unchanged code because a new ruff
+  release widened its defaults.
+
+Figures and scripts
+- `make_qualitative_figure.py` defaults to a selection that alternates between
+  queries distillation corrects and queries it degrades, and always prints both
+  counts. Generated figures default into the ignored `figures/` directory.
+- `scripts/revision/` holds the experiments run for the revision, each one
+  producing the numbers quoted in the paper.
+
 ## 0.1.3 - 2026-07-20
 
 Metadata and hygiene fixes surfaced by an independent review; no published
