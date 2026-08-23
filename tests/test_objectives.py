@@ -133,3 +133,38 @@ def test_trainer_relational_scale_schedule():
     assert trainer._relational_scale(5) == pytest.approx(0.2)
     assert trainer._relational_scale(9) == pytest.approx(1.0)
     assert trainer._relational_scale(30) == 1.0
+
+
+def test_effective_weight_exposes_the_mse_scale_trap():
+    from embedkd.objectives import effective_weights, format_effective_weights
+
+    # A nominal weight is not a strength: for L2-normalised embeddings the MSE
+    # objective returns (2/D) times what cosine returns, so at D=512 a weight of
+    # 10 pulls as hard as a cosine weight of 0.039.
+    cosine = effective_weights({"objective": "cosine"}, alpha=10.0, embed_dim=512)
+    mse = effective_weights({"objective": "mse"}, alpha=10.0, embed_dim=512)
+
+    assert cosine["cosine"]["cosine_equivalent"] == 10.0
+    # The report rounds to six decimals for readability, hence the loose bound.
+    assert abs(mse["mse"]["cosine_equivalent"] - 10.0 * 2 / 512) < 1e-6
+    assert abs(mse["mse"]["cosine_equivalent"] - 0.039062) < 1e-5
+
+    # The weight that matches cosine at 10 is 2560, the value the paper reports.
+    matched = effective_weights({"objective": "mse"}, alpha=2560.0, embed_dim=512)
+    assert abs(matched["mse"]["cosine_equivalent"] - 10.0) < 1e-6
+
+    # Objectives measuring a different quantity must not invite the comparison.
+    rkd = effective_weights({"objective": "rkd"}, alpha=1.0, embed_dim=512)
+    assert rkd["rkd"]["cosine_equivalent"] is None
+    assert "cosine-equivalent" not in format_effective_weights(rkd)
+    assert "cosine-equivalent" in format_effective_weights(mse)
+
+
+def test_effective_weight_handles_a_combined_objective():
+    from embedkd.objectives import effective_weights
+
+    report = effective_weights({"objective": {"cosine": 1.0, "rkd": 0.5}},
+                               alpha=10.0, embed_dim=512)
+    assert report["cosine"]["nominal_weight"] == 10.0
+    assert report["rkd"]["nominal_weight"] == 5.0
+    assert report["rkd"]["cosine_equivalent"] is None

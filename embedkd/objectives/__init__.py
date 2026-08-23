@@ -185,6 +185,49 @@ class CombinedObjective(DistillObjective):
         return total
 
 
+# How each objective's loss value scales relative to the cosine objective, for
+# L2-normalised embeddings of dimension D. Only the pointwise pair is
+# comparable this way: ||s - t||^2 = 2 - 2cos(s, t), and mse_loss reduces over
+# D as well as the batch, so it returns (2/D) times what cosine returns. RKD
+# and logit KD measure different quantities and no such factor exists.
+_SCALE_TO_COSINE = {
+    "cosine": lambda d: 1.0,
+    "mse": lambda d: 2.0 / d,
+}
+
+
+def effective_weights(distill_cfg: dict, alpha: float, embed_dim: int) -> dict:
+    """Report each objective's weight in units of the cosine objective.
+
+    A nominal weight is not a strength. At embed_dim 512 an MSE term at weight
+    10 pulls as hard as a cosine term at weight 0.039, which is easy to miss
+    and did mislead us. Objectives without a meaningful conversion report None
+    rather than a number that would invite a false comparison.
+    """
+    spec = distill_cfg["objective"]
+    weights = {spec: 1.0} if isinstance(spec, str) else {k: float(v) for k, v in spec.items()}
+    report = {}
+    for name, share in weights.items():
+        factor = _SCALE_TO_COSINE.get(name)
+        nominal = alpha * share
+        report[name] = {
+            "nominal_weight": round(nominal, 6),
+            "cosine_equivalent": round(nominal * factor(embed_dim), 6) if factor else None,
+        }
+    return report
+
+
+def format_effective_weights(report: dict) -> str:
+    parts = []
+    for name, entry in report.items():
+        if entry["cosine_equivalent"] is None:
+            parts.append(f"{name} weight {entry['nominal_weight']:g}")
+        else:
+            parts.append(f"{name} weight {entry['nominal_weight']:g} "
+                         f"(cosine-equivalent {entry['cosine_equivalent']:g})")
+    return "distillation: " + ", ".join(parts)
+
+
 def build_objective(distill_cfg: dict) -> CombinedObjective:
     """Build the (possibly combined) objective declared in the config."""
     spec = distill_cfg["objective"]

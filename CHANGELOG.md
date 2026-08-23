@@ -3,6 +3,18 @@
 All notable changes to EmbedKD are documented here. The project follows
 semantic versioning; the config schema is part of the public API.
 
+## 0.1.5 - 2026-08-23
+
+- `effective_weights` reports what each distillation objective actually pulls
+  with, and a run prints it before the first epoch. A nominal weight is not a
+  strength: for L2-normalised embeddings of dimension D the MSE objective
+  returns (2/D) times what cosine returns, so at D=512 a weight of 10 pulls as
+  hard as a cosine weight of 0.039. That factor cost us an uninterpretable row
+  in the first version of the paper, and it is now visible in the first line of
+  every log. Objectives that measure a different quantity, RKD and logit KD,
+  report no equivalent rather than a number that would invite a false
+  comparison.
+
 ## 0.1.4 - 2026-08-23
 
 Revision round for the SoftwareX submission. No published metric changed; the

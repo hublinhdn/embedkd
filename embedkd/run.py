@@ -18,7 +18,7 @@ from .engine import Trainer, set_seed, write_fingerprint
 from .evaluation import evaluate_model
 from .losses import build_task_loss
 from .models import EmbedHead, EmbeddingModel, create_backbone
-from .objectives import build_objective
+from .objectives import build_objective, effective_weights, format_effective_weights
 
 
 def _load_teacher_weights(model: EmbeddingModel, spec: str) -> None:
@@ -117,6 +117,13 @@ class DistillationRun:
 
     def fit(self) -> dict:
         write_fingerprint(self.cfg, self.out_dir)
+        # A nominal distillation weight says little on its own; print what each
+        # objective actually pulls with, so a mis-scaled term is visible in the
+        # first line of the log rather than in the final metric.
+        if float(self.cfg["distill"]["alpha"]) != 0.0:
+            print(format_effective_weights(effective_weights(
+                self.cfg["distill"], float(self.cfg["distill"]["alpha"]),
+                int(self.cfg["student"]["embed_dim"]))))
         self._trainer = Trainer(
             self.cfg, self.student, self.teacher, self.objective, self.task_loss,
             self.bundle, self.out_dir, device=self.device,

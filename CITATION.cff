@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata below."
 title: "EmbedKD: a reproducibility-first toolkit for knowledge distillation of metric embeddings"
-version: 0.1.4
+version: 0.1.5
 # Concept DOI: always resolves to the newest archived version, so this
 # file cannot go stale the way the per-version DOI did.
 doi: 10.5281/zenodo.21458182
